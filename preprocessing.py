@@ -19,15 +19,16 @@ except NameError:
 
 class Preprocessing(object):
 
-    def __init__(self, num_mode, num_class, num_patch, volume_size, patch_size, n4bias, data_name, root, training_bool):
+    def __init__(self, n_mode, n_class, n_patch, volume_size, patch_size, n4, n4_apply, data_name, root, train_bl):
         
-        self.num_mode = num_mode #4 #BRATS -> 5 # include ground truth
-        self.num_class = num_class #2 #BRATS -> 5
-        self.num_patch = num_patch #10
+        self.num_mode = n_mode #4 #BRATS -> 5 # include ground truth
+        self.num_class = n_class #2 #BRATS -> 5
+        self.num_patch = n_patch #10
         self.volume_size = volume_size #(512,512,512) #BRATS -> (155,240,240)
         self.patch_size = patch_size #(25,25,25)
-        self.n4bias = n4bias #False
-        self.training_bool = training_bool
+        self.n4bias = n4
+        self.n4bias_apply = n4_apply
+        self.training_bool = train_bl
         self.data_name = data_name #'MICCAI2008' #BRATS -> 'BRATS2015'
         self.root_path = root + data_name #'/Users/jui/Downloads/Data/' + data_name
         self.label_path = self.root_path + '/label'
@@ -70,6 +71,8 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                 if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+                if slice_ix==76:
+                    io.imsave(self.root_path+'/blats_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
 
         print('Done.')
         return normed_slices
@@ -78,14 +81,14 @@ class Preprocessing(object):
         if data_name == 'MICCAI2008':
             flair = glob(path + '/*FLAIR' + self.ext)
             t1 = glob(path + '/*T1' + self.ext)
-            t1_n4 = glob(path + '/*T1_n' + self.ext)
+            t1_n4 = glob(path + '/*T1*_n.mha')
             t2 = glob(path + '/*T2' + self.ext)
             gt = glob(path + '/*lesion' + self.ext)
 
         elif data_name == 'BRATS2015':
             flair = glob(path + '/*Flair*/*' + self.ext)
             t1 = glob(path + '/*T1*/*' + self.ext)
-            t1_n4 = glob(path + '/*T1*/*_n' + self.ext)
+            t1_n4 = glob(path + '/*T1*/*_n.mha')
             t2 = glob(path + '/*_T2*/*' + self.ext)
             gt = glob(path + '/*OT*/*' + self.ext)
 
@@ -99,27 +102,29 @@ class Preprocessing(object):
         flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
         t1 = [scan for scan in t1s if scan not in t1_n4]
 
-        if not self.n4bias:
-            try:
+        try:
+            if not self.n4bias:
                 if len(t1) > 1:
                     mode = [flair[0], t1[0], t1[1], t2[0], gt[0]]
                 else:
                     mode = [flair[0], t1[0], t2[0], gt[0]]
-            except IndexError:
-                print('ERR(index err) : '+t1)
-                return False
-        else:
-            for im in t1:
-                self.n4itk_norm(im) # n4 normalize
-            t1_n4 = glob(patient + '/*T1_n' + self.ext)
-            try:
+            else:
+                if self.n4bias_apply:
+                    for im in t1:
+                        self.n4itk_norm(im) # n4 normalize
+
+                nm = '/*T1*_n'
+                if self.data_name == 'BRATS2015': nm = '/*T1*/'+nm
+
+                t1_n4 = glob(patient + nm + self.ext)
+
                 if len(t1_n4) > 1:
                     mode = [flair[0], t1_n4[0], t1_n4[1], t2[0], gt[0]]
                 else:
                     mode = [flair[0], t1_n4[0], t2[0], gt[0]]
-            except IndexError:
-                print('ERR(index err) : '+t1_n4)
-                return False
+        except IndexError:
+            print('ERR(index err) : ' + patient)
+            return False
 
         for scan_idx in range(len(mode)):
             self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
@@ -130,11 +135,14 @@ class Preprocessing(object):
     def n4itk_norm(self, path):
         img=sitk.ReadImage(path)
         img=sitk.Cast(img, sitk.sitkFloat32)
-        img_mask=sitk.BinaryNot(sitk.BinaryThreshold(img, 0, 0))
+        img_mask=sitk.BinaryThreshold(img, 0, 0)
+        
         print('-> Applyling bias correction...')
+        #corrector = sitk.N4BiasFieldCorrectionImageFilter()
+        #corrected_img = corrector.Execute(img, img_mask)
         corrected_img = sitk.N4BiasFieldCorrection(img, img_mask, 0.001, [50,50,30,20])
         print('-> Done.')
-        sitk.WriteImage(corrected_img, self.path.replace(self.ext, '_n' + self.ext))
+        sitk.WriteImage(corrected_img, path.replace(self.ext, '__n.mha'))
 
     def save_labels(self, labels):
         for label_idx in range(len(labels)):

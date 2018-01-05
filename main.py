@@ -29,10 +29,10 @@ parser.add_argument("--patch_size",type=int,default=16)
 parser.add_argument("--n_patch",type=int,default=100)
 parser.add_argument("--batch_size",type=int,default=64)
 parser.add_argument("--root",type=str,default='/Users/jui/Downloads/Data/')
-parser.add_argument("--data_name",type=str,default='MICCAI2008')
-parser.add_argument("--n_class",type=int,default=2)
-parser.add_argument("--n_mode",type=int,default=4)
-parser.add_argument("--volume_size",type=int,default=512)
+parser.add_argument("--data_name",type=str,default='BRATS2015')
+parser.add_argument("--n_class",type=int,default=5)
+parser.add_argument("--n_mode",type=int,default=5)
+parser.add_argument("--volume_size",type=int,default=240)
 args = parser.parse_args()
 
 import warnings
@@ -43,19 +43,22 @@ try:
 except NameError:
     xrange = range
 
-root = '/Users/jui/Downloads/Data/'
-data_name = 'MICCAI2008' #'MICCAI2008' #BRATS -> 'BRATS2015'
+root = args.root
+data_name = args.data_name #'MICCAI2008' #BRATS -> 'BRATS2015'
 n_channel = 1
 out_dim = 3
 n_class = args.n_class
 n_mode = args.n_mode # include gound truth
-volume_size = (args.volume_size,args.volume_size,args.volume_size)
+if data_name == 'BRATS2015':
+    volume_size = (155,args.volume_size,args.volume_size)
+else:
+    volume_size = (args.volume_size,args.volume_size,args.volume_size)
 patch_size = (args.patch_size, args.patch_size, args.patch_size)
 batch_size = args.batch_size
 n_patch = args.n_patch
 
 # Preprocessing
-pp = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, True, 'MICCAI2008', root, True)
+pp = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, True, data_name, root, True)
 
 p_path, l_path = pp.preprocess()
 
