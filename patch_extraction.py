@@ -92,6 +92,10 @@ class Patches3d(object):
     def _labels_filtering(self, label, cl):
 
         # label filtering
+        if len(np.unique(label)) == 1:
+            a = random.randint(0,10)
+            if a < 8: return False
+            
         if len(np.argwhere(label == cl)) < 10:
             return False
         

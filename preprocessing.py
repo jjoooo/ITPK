@@ -73,8 +73,8 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
 
                 # Test        
-                if slice_ix==76:
-                    io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
+                # if slice_ix==76:
+                #     io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
 
         print('Done.')
         return normed_slices
@@ -115,10 +115,10 @@ class Preprocessing(object):
                     for im in t1:
                         self.n4itk_norm(im) # n4 normalize
 
-                nm = '/*T1*_n'
+                nm = '/*T1*_n.mha'
                 if self.data_name == 'BRATS2015': nm = '/*T1*/'+nm
 
-                t1_n4 = glob(patient + nm + self.ext)
+                t1_n4 = glob(patient + nm)
 
                 if len(t1_n4) > 1:
                     mode = [flair[0], t1_n4[0], t1_n4[1], t2[0], gt[0]]
@@ -183,12 +183,12 @@ class Preprocessing(object):
                 temp = p_path+'/{}_{}.mha'.format(idx, m)
                 sitk.WriteImage(sitk.GetImageFromArray(pair_p[m]), temp)
                 pp = io.imread(temp, plugin='simpleitk').astype(float)
-                io.imsave(temp[:-4]+'.PNG', pp[7][0])
+                io.imsave(temp[:-4]+'.PNG', pp[7][8])
 
             temp = l_path+'/{}_l.mha'.format(idx)     
             sitk.WriteImage(sitk.GetImageFromArray(pair_l[0]), temp)
             ll = io.imread(temp, plugin='simpleitk').astype(float)
-            io.imsave(temp[:-4]+'.PNG', ll[7][0])
+            io.imsave(temp[:-4]+'.PNG', ll[8])
      
         print('Complete.')
 
