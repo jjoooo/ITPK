@@ -183,12 +183,12 @@ class Preprocessing(object):
                 temp = p_path+'/{}_{}.mha'.format(idx, m)
                 sitk.WriteImage(sitk.GetImageFromArray(pair_p[m]), temp)
                 pp = io.imread(temp, plugin='simpleitk').astype(float)
-                io.imsave(temp[:-4]+'.PNG', pp[7])
+                io.imsave(temp[:-4]+'.PNG', pp[7][0])
 
             temp = l_path+'/{}_l.mha'.format(idx)     
             sitk.WriteImage(sitk.GetImageFromArray(pair_l[0]), temp)
             ll = io.imread(temp, plugin='simpleitk').astype(float)
-            io.imsave(temp[:-4]+'.PNG', ll[7])
+            io.imsave(temp[:-4]+'.PNG', ll[7][0])
      
         print('Complete.')
 
