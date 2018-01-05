@@ -55,7 +55,7 @@ batch_size = args.batch_size
 n_patch = args.n_patch
 
 # Preprocessing
-pp = Preprocessing(n_mode, n_class, 100/n_class, volume_size, patch_size, True, 'MICCAI2008', root, True)
+pp = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, True, 'MICCAI2008', root, True)
 
 p_path, l_path = pp.preprocess()
 
