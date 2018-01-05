@@ -54,11 +54,11 @@ class Patches3d(object):
                 l_idx = random.choice(c_l[c])
               
                 d1 = l_idx[0]-int(self.d/2)
-                d2 = l_idx[0]+int(self.d/2)+1
+                d2 = l_idx[0]+int(self.d/2)
                 h1 = l_idx[1]-int(self.h/2)
-                h2 = l_idx[1]+int(self.h/2)+1
+                h2 = l_idx[1]+int(self.h/2)
                 w1 = l_idx[2]-int(self.w/2)
-                w2 = l_idx[2]+int(self.w/2)+1
+                w2 = l_idx[2]+int(self.w/2)
 
                 if d1 < 0 or d2 > self.volume_size[0] or h1 < 0 or h2 > self.volume_size[1] or w1 < 0 or w2 > self.volume_size[2]:
                     continue
@@ -127,74 +127,12 @@ class Patches3d(object):
 
         return True
 
-    def make_patch(self, volume, pair_p, pair_l, center_labels):
+    def make_patch(self, volume, center_labels):
             
         patches, labels, center_l = self._create_patches(volume)
-
-        pair_p += patches
-        pair_l += labels
         center_labels += center_l
 
-        return pair_p, pair_l, center_labels
-
-    def make_balance_patches(self, pair_p, pair_l, center_labels):
-
-        l_idx = []
-
-        center_labels = np.asarray(center_labels)
-
-        for c in range(self.num_class):
-            if self.num_patch > len(np.argwhere(center_labels == c)):
-                self.num_patch = len(np.argwhere(center_labels == c))
-       
-        for c in range(self.num_class):
-            cnt = 0
-            c_l = []
-            while cnt < self.num_patch:
-                p = random.choice(np.argwhere(center_labels == c))
-                c_l += list(p)
-                c_l = list(set(c_l))
-                cnt = len(c_l)
-
-            l_idx += c_l
-        
-        l_idx = sorted(l_idx, reverse=True)
-        
-        patches = [[],[],[],[]] # mode 4
-        labels = []
-        c_labels = []
-
-        center_labels = center_labels.tolist()
-
-        if len(pair_p[0]) != len(pair_l):
-            print('ERR patches length {} != labels length {}'.format(len(pair_p[0]), len(pair_l)))
-            return patches, labels, c_labels
-
-        # keep & pop
-        for i in l_idx:
-            while True:
-
-                # keep & pop
-                if i == len(pair_p[0])-1:
-                    for m in range(self.num_mode-1):
-                        patches[m].append(pair_p[m].pop())
-                    labels += [pair_l.pop()]
-                    c_labels += [center_labels.pop()]
-                    break
-                # pop
-                else:
-                    if not pair_l:
-                        break
-                    for m in range(self.num_mode-1):
-                        pair_p[m].pop()
-                    pair_l.pop()
-                    center_labels.pop()
-           
-        del pair_p
-        del pair_l
-        del center_labels
-
-        return patches, labels, c_labels
+        return patches, labels, center_labels
 
 if __name__ == '__main__':
     pass

@@ -30,6 +30,7 @@ class Preprocessing(object):
         self.training_bool = training_bool
         self.data_name = data_name #'MICCAI2008' #BRATS -> 'BRATS2015'
         self.root_path = root + data_name #'/Users/jui/Downloads/Data/' + data_name
+        self.label_path = self.root_path + '/label'
 
         self.path = ''
         self.ext = ''
@@ -43,8 +44,6 @@ class Preprocessing(object):
 
         self.patients = glob(self.path + '/**')
 
-        self.pair_p = [[],[],[],[]]
-        self.pair_l = []
         self.center_labels = []
 
         self.slices_by_mode = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
@@ -110,7 +109,6 @@ class Preprocessing(object):
                 print('ERR(index err) : '+t1)
                 return False
         else:
-            print('-> Applyling bias correction...')
             for im in t1:
                 self.n4itk_norm(im) # n4 normalize
             t1_n4 = glob(patient + '/*T1_n' + self.ext)
@@ -122,7 +120,6 @@ class Preprocessing(object):
             except IndexError:
                 print('ERR(index err) : '+t1_n4)
                 return False
-            print('-> Done.')
 
         for scan_idx in range(len(mode)):
             self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
@@ -134,11 +131,32 @@ class Preprocessing(object):
         img=sitk.ReadImage(path)
         img=sitk.Cast(img, sitk.sitkFloat32)
         img_mask=sitk.BinaryNot(sitk.BinaryThreshold(img, 0, 0))
+        print('-> Applyling bias correction...')
         corrected_img = sitk.N4BiasFieldCorrection(img, img_mask, 0.001, [50,50,30,20])
+        print('-> Done.')
         sitk.WriteImage(corrected_img, self.path.replace(self.ext, '_n' + self.ext))
+
+    def save_labels(self, labels):
+        for label_idx in range(len(labels)):
+            slices = io.imread(labels[label_idx], plugin = 'simpleitk')
+            for slice_idx in range(len(slices)):
+                io.imsave(self.path[:-3]+'Labels/{}_{}L.png'.format(label_idx, slice_idx), slices[slice_idx])
+
+    def test_im_path(self):
+        flair = glob(self.root_path+'/*test*/**/*FLAIR'+self.ext)
+        t1 = glob(self.root_path+'/*test*/**/*T1'+self.ext)
+        t2 = glob(self.root_path+'/*test*/**/*T2'+self.ext)
+        return [flair, t1, t2]
 
     def preprocess(self):
 
+        p_path = self.root_path+'/patch'
+        l_path = self.root_path+'/label'
+        if not os.path.exists(p_path):
+            os.makedirs(p_path)
+        if not os.path.exists(l_path):
+            os.makedirs(l_path)
+            
         for idx, patient in enumerate(self.patients):
 
             if not self.volume2slices(patient):
@@ -148,26 +166,31 @@ class Preprocessing(object):
 
             # run patch_extraction
             pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
-            self.pair_p, self.pair_l, self.center_labels = pl.make_patch(normed_slices, self.pair_p, self.pair_l, self.center_labels)
-            print('-----------------------------------------idx = {} & num of patches = {}'.format(idx, len(self.pair_l)))
+            pair_p, pair_l, self.center_labels = pl.make_patch(normed_slices, self.center_labels)
+            print('------------------------------idx = {} & num of patches = {}'.format(idx, len(pair_l)))
 
-        # run balancing
-        # if self.training_bool:
-        #     patches, labels, c_labels = pl.make_balance_patches(self.pair_p, self.pair_l, self.center_labels)
+            for m in range(self.num_mode-1):
+                temp = p_path+'/{}_{}.mha'.format(idx, m)
+                sitk.WriteImage(sitk.GetImageFromArray(pair_p[m]), temp)
+                pp = io.imread(temp, plugin='simpleitk').astype(float)
+                io.imsave(temp[:-4]+'.PNG', pp[7])
 
-        # save example patches
+            temp = l_path+'/{}_l.mha'.format(idx)     
+            sitk.WriteImage(sitk.GetImageFromArray(pair_l[0]), temp)
+            ll = io.imread(temp, plugin='simpleitk').astype(float)
+            io.imsave(temp[:-4]+'.PNG', ll[7])
+     
+        print('Complete.')
+
         ''' 
         for c in range(num_class):
             for m in range(num_mode-1):
-                p = random.choice(np.argwhere(np.asarray(c_labels) == c))
+                p = random.choice(np.argwhere(np.asarray(self.center_labels) == c))
                 p = p[0]
                 fn = '/Users/jui/Downloads/Data/' + data_name + '_{}_{}.PNG'.format(m,c)
                 io.imsave(fn, patches[m][p][7])
         '''
-
-        print('Complete.')
-
-        return self.pair_p, self.pair_l, self.center_labels
+        return p_path, l_path
 
 if __name__ == '__main__':
     pass

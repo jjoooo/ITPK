@@ -54,7 +54,7 @@ class UnetGenerator_3d(nn.Module):
         self.num_filter = num_filter
         act_fn = nn.LeakyReLU(0.2, inplace=True)
 
-        print("\n------Initiating U-Net------\n")
+        print("\n------\tInitiating U-Net\t------\t\n")
         
         self.down_1 = conv_block_2_3d(self.in_dim,self.num_filter,act_fn)
         self.pool_1 = maxpool_3d()
@@ -73,6 +73,8 @@ class UnetGenerator_3d(nn.Module):
         self.up_3 = conv_block_2_3d(self.num_filter*3,self.num_filter*1,act_fn)
         
         self.out = conv_block_3d(self.num_filter,out_dim,act_fn)
+
+        print("\n-----\tComplete\t-----\n")
 
     def forward(self,x):
         down_1 = self.down_1(x)
@@ -114,4 +116,3 @@ def loss_function(output,label):
             total_loss += loss
             
     return total_loss
-
