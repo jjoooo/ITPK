@@ -71,8 +71,10 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                 if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+
+                # Test        
                 if slice_ix==76:
-                    io.imsave(self.root_path+'/blats_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
+                    io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
 
         print('Done.')
         return normed_slices
