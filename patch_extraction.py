@@ -44,7 +44,7 @@ class Patches3d(object):
             if self.num_patch > len(c_l[c]):
                 self.num_patch = len(c_l[c])
 
-        patches, labels, center_l = [[],[],[],[]], [], []
+        patches, labels, center_l = [], [], []
         for c in range(self.num_class):
         
             # random patch each class
@@ -79,10 +79,14 @@ class Patches3d(object):
                         break
                 if not bool_p:
                     continue
-
+                
                 for m in range(self.num_mode-1):
                     patch = volume[m, d1:d2, h1:h2, w1:w2]
-                    patches[m].append(patch)
+                    if m==0:
+                        patch_mode = patch
+                    else:
+                        patch_mode = np.concatenate((patch_mode, patch))
+                patches.append(patch_mode)
                 labels.append(label)
                 center_l += [cl]
                 cnt += 1
@@ -95,7 +99,7 @@ class Patches3d(object):
         if len(np.unique(label)) == 1:
             a = random.randint(0,10)
             if a < 8: return False
-            
+
         if len(np.argwhere(label == cl)) < 10:
             return False
         

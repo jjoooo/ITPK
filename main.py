@@ -46,7 +46,7 @@ except NameError:
 root = args.root
 data_name = args.data_name #'MICCAI2008' #BRATS -> 'BRATS2015'
 n_channel = 1
-out_dim = 3
+out_dim = 2
 n_class = args.n_class
 n_mode = args.n_mode # include gound truth
 if data_name == 'BRATS2015':
@@ -57,76 +57,84 @@ patch_size = (args.patch_size, args.patch_size, args.patch_size)
 batch_size = args.batch_size
 n_patch = args.n_patch
 
+print('----------------------------------------------')
+print('n_gpu = {}'.format(args.n_gpu))
+print('volume size = {}'.format(volume_size))
+print('patch size = {}'.format(patch_size))
+print('batch size = {}'.format(batch_size))
+print('n_channel = {}'.format(n_channel))
+print('n_class = {}'.format(n_class))
+print('n_mode = {}'.format(n_mode))
+print('n_patches = {}'.format(n_patch))
+print('root = '+root)
+print('data name = '+data_name)
+print('----------------------------------------------')
+
 # Preprocessing
 pp = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, True, True, data_name, root, True)
 
 p_path, l_path = pp.preprocess()
 
-# Training (each mode)
+# Training
+# net
+unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_channel,out_dim=out_dim,num_filter=16)).cuda()
+optimizer = torch.optim.Adam(unet.parameters(),lr=0.0002)
 
-unet = [[],[],[],[]]
+cnt = 1
+output_cnt = 1
+
+while True:
+    m_p_path = glob(p_path+'/{}.mha'.format(cnt-1))
+    m_l_path = glob(l_path+'/{}_l.mha'.format(cnt-1))
+    if not m_p_path or not m_l_path: break
+    
+    p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
+    l = io.imread(m_l_path[0], plugin='simpleitk').astype(float)
+
+    
+    for patch, label in zip(p,l):
+        if cnt==1:
+            x = [patch]
+            y = [label]
+        else:
+            x = np.append(x, patch)
+            y = np.append(y, label)
+
+        if cnt % batch_size == 0:
+            x = Variable(torch.from_numpy(x))
+            y = Variable(torch.from_numpy(y))
+            output = unet.forward(x)
+            loss = loss_function(output,y)
+            
+            loss.backward()
+            optimizer.step()
+
+            output_cnt += 1
+            cnt = 1
+
+        cnt += 1
+
+        if output_cnt % 50 ==0:
+            print('[{}] -------> loss : {}'.format(output_cnt, loss))
+            torch.save(unet.state_dict(),'./model/miccai_{}.pkl'.format(output_cnt))
+    
+# test
 test_path = pp.test_im_path()
 
-for m in range(n_mode-1):
-    # net
-    unet[m] = nn.DataParallel(UnetGenerator_3d(in_dim=3,out_dim=out_dim,num_filter=16)).cuda()
-    optimizer = torch.optim.Adam(unet[m].parameters(),lr=0.0002)
+ct = 0
+for p in test_path:
+    x = io.imread(p, plugin='simpleitk').astype(float)
+    y = unet.forward(x)
 
-    cnt = 1
-    output_cnt = 1
-    
-    x = Variable(torch.ones(batch_size,1,args.patch_size,args.patch_size,args.patch_size)).cuda()
-    y = Variable(torch.zeros(batch_size,1,args.patch_size,args.patch_size,args.patch_size)).cuda()
-
-    fn = ''
-    if m==0: fn='FLAIR'
-    elif m==1: fn='T1'
-    else: fn='T2'
-
-    while True:
-        m_p_path = glob(p_path+'/{}_{}.mha'.format(cnt-1, m))
-        m_l_path = glob(l_path+'/{}_l.mha'.format(cnt-1))
-        if not m_p_path or not m_l_path: break
-
-        p = io.imread(m_p_path, plugin='simpleitk').astype(float)
-        l = io.imread(m_l_path, plugin='simpleitk').astype(float)
-
-        for pp, ll in zip(p,l):
-            x[cnt-1] = torch.from_numpy(pp)
-            y[cnt-1] = torch.from_numpy(ll)
-            if cnt % batch_size == 0:
-                output = unet[m].forward(x)
-                #label = Variable(torch.zeros(batch_size,1,16,16,16).type_as(torch.LongTensor())).cuda()
-                loss = loss_function(output,y)
-                
-                loss.backward()
-                optimizer.step()
-
-                output_cnt += 1
-                cnt = 1
-
-            cnt += 1
-
-            if output_cnt % 50 ==0:
-                print('[MODE {}] - {}-------> loss : {}'.format(m, output_cnt, loss))
-                torch.save(unet[m].state_dict(),'./model/miccai_{}_{}.pkl'.format(m, output_cnt))
-        
-    # test
-    
-    ct = 0
-    for p in test_path[m]:
-        x = io.imread(p, plugin='simpleitk').astype(float)
-        y = unet[m].forward(x)
-
-        # save
-        path = './test/'
-        if not os.path.exists(path):
-            os.makedirs(path)
-        s_cnt = 0
-        for slice in y:
-            io.imsave(path+'{}_{}_{}.PNG'.format(m, cnt, s_cnt), slice)    
-            s_cnt += 1
-        ct += 1
+    # save
+    path = './test/'
+    if not os.path.exists(path):
+        os.makedirs(path)
+    s_cnt = 0
+    for slice in y:
+        io.imsave(path+'{}_{}.PNG'.format(cnt, s_cnt), slice)    
+        s_cnt += 1
+    ct += 1
 
 '''
 # model loading
