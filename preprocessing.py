@@ -168,6 +168,7 @@ class Preprocessing(object):
             os.makedirs(l_path)
             
         # if len(p_path) > 0: return p_path, l_path
+        patch_n = 0
         for idx, patient in enumerate(self.patients):
 
             if not self.volume2slices(patient):
@@ -180,17 +181,15 @@ class Preprocessing(object):
             pair_p, pair_l, self.center_labels = pl.make_patch(normed_slices, self.center_labels)
             print('------------------------------idx = {} & num of patches = {}'.format(idx, len(pair_p)))
 
-            temp = p_path+'/{}.mha'.format(idx)
-            sitk.WriteImage(sitk.GetImageFromArray(pair_p), temp)
+            patient_n = 0
+            for p,l in zip(pair_p, pair_l):
+                temp = p_path+'/{}.mha'.format(patch_n)
+                sitk.WriteImage(sitk.GetImageFromArray(pair_p), temp)
 
-            temp = l_path+'/{}_l.mha'.format(idx)     
-            sitk.WriteImage(sitk.GetImageFromArray(pair_l), temp)
+                temp = l_path+'/{}_l.mha'.format(patch_n)     
+                sitk.WriteImage(sitk.GetImageFromArray(pair_l), temp)
 
-            # save png file for ex
-            pp = io.imread(temp, plugin='simpleitk').astype(float)
-            io.imsave(temp[:-4]+'.PNG', pp[7][8])
-            ll = io.imread(temp, plugin='simpleitk').astype(float)
-            io.imsave(temp[:-4]+'.PNG', ll[7][8])
+                patch_n += 1
      
         print('Complete.')
 

@@ -82,42 +82,43 @@ optimizer = torch.optim.Adam(unet.parameters(),lr=0.0002)
 
 cnt = 1
 output_cnt = 1
+patch_n = 0
 
 while True:
-    m_p_path = glob(p_path+'/{}.mha'.format(cnt-1))
-    m_l_path = glob(l_path+'/{}_l.mha'.format(cnt-1))
+    m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
+    m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
     if not m_p_path or not m_l_path: break
+
+    x = np.zeros([batch_size, n_channel, args.patch_size*n_mode, args.patch_size, args.patch_size])
+    y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
     
     p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
     l = io.imread(m_l_path[0], plugin='simpleitk').astype(float)
-
     
-    for patch, label in zip(p,l):
-        if cnt==1:
-            x = [patch]
-            y = [label]
-        else:
-            x = np.append(x, patch)
-            y = np.append(y, label)
+    x[cnt-1,0] = p
+    y[cnt-1,0] = l
 
-        if cnt % batch_size == 0:
-            x = Variable(torch.from_numpy(x))
-            y = Variable(torch.from_numpy(y))
-            output = unet.forward(x)
-            loss = loss_function(output,y)
-            
-            loss.backward()
-            optimizer.step()
+    if cnt % batch_size == 0:
+        x = Variable(torch.from_numpy(x)).cuda()
+        y = Variable(torch.from_numpy(y)).cuda()
+        output = unet.forward(x)
+        loss = loss_function(output,y)
+        
+        loss.backward()
+        optimizer.step()
 
-            output_cnt += 1
-            cnt = 1
+        output_cnt += 1
+        cnt = 1
 
-        cnt += 1
+    cnt += 1
 
-        if output_cnt % 50 ==0:
-            print('[{}] -------> loss : {}'.format(output_cnt, loss))
-            torch.save(unet.state_dict(),'./model/miccai_{}.pkl'.format(output_cnt))
+    if output_cnt % 50 ==0:
+        print('[{}] -------> loss : {}'.format(output_cnt, loss))
+        torch.save(unet.state_dict(),'./model/miccai_{}.pkl'.format(output_cnt))
+
+    patch_n += 1
     
+'''
 # test
 test_path = pp.test_im_path()
 
@@ -136,7 +137,7 @@ for p in test_path:
         s_cnt += 1
     ct += 1
 
-'''
+
 # model loading
 
 for m in range(n_mode-1):
