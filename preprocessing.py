@@ -185,10 +185,10 @@ class Preprocessing(object):
             patient_n = 0
             for p,l in zip(pair_p, pair_l):
                 temp = p_path+'/{}.mha'.format(patch_n)
-                sitk.WriteImage(sitk.GetImageFromArray(pair_p), temp)
+                sitk.WriteImage(sitk.GetImageFromArray(p), temp)
 
                 temp = l_path+'/{}_l.mha'.format(patch_n)
-                sitk.WriteImage(sitk.GetImageFromArray(pair_l), temp)
+                sitk.WriteImage(sitk.GetImageFromArray(l), temp)
 
                 patch_n += 1
      

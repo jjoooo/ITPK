@@ -77,32 +77,35 @@ p_path, l_path = pp.preprocess()
 
 # Training
 # net
-unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_channel,out_dim=out_dim,num_filter=16)).cuda()
+unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode,out_dim=out_dim,num_filter=16)).cuda()
 optimizer = torch.optim.Adam(unet.parameters(),lr=0.0002)
 
 cnt = 1
 output_cnt = 1
 patch_n = 0
 
-while True:
-    m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
-    m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
-    if not m_p_path or not m_l_path: break
+patch_path = glob(p_path+'/**')
+label_path = glob(l_path+'/**')
 
-    x = np.zeros([batch_size, n_channel, args.patch_size*n_mode, args.patch_size, args.patch_size])
+for pp,lp in zip(patch_path, label_path):
+
+    x = np.zeros([batch_size, n_mode-1, args.patch_size*(n_mode-1), args.patch_size, args.patch_size])
     y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
 
-    p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
-    l = io.imread(m_l_path[0], plugin='simpleitk').astype(float)
+    p = io.imread(pp, plugin='simpleitk').astype(float)
+    l = io.imread(lp, plugin='simpleitk').astype(float)
     
     print(p.shape)
     print(l.shape)
-    x[cnt-1,0] = p
+    for m in range(n_mode-1):
+        d1 = m*args.patch_size
+        d2 = (m+1)*args.patch_size
+        x[cnt-1,m] = p[d1:d2]
     y[cnt-1,0] = l
 
     if cnt % batch_size == 0:
-        x = Variable(torch.from_numpy(x)).cuda()
-        y = Variable(torch.from_numpy(y)).cuda()
+        x = Variable(torch.from_numpy(x).float()).cuda()
+        y = Variable(torch.from_numpy(y).long()).cuda()
         output = unet.forward(x)
         loss = loss_function(output,y)
         

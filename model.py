@@ -74,7 +74,7 @@ class UnetGenerator_3d(nn.Module):
         
         self.out = conv_block_3d(self.num_filter,out_dim,act_fn)
 
-        print("\n-----\tComplete\t-----\n")
+        print("------\tComplete\t------")
 
     def forward(self,x):
         down_1 = self.down_1(x)
