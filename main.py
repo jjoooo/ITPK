@@ -89,14 +89,12 @@ label_path = glob(l_path+'/**')
 
 for pp,lp in zip(patch_path, label_path):
 
-    x = np.zeros([batch_size, n_mode-1, args.patch_size*(n_mode-1), args.patch_size, args.patch_size])
+    x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
     y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
 
     p = io.imread(pp, plugin='simpleitk').astype(float)
     l = io.imread(lp, plugin='simpleitk').astype(float)
     
-    print(p.shape)
-    print(l.shape)
     for m in range(n_mode-1):
         d1 = m*args.patch_size
         d2 = (m+1)*args.patch_size
