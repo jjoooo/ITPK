@@ -26,7 +26,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_gpu",type=int,default=8)
 parser.add_argument("--patch_size",type=int,default=16)
-parser.add_argument("--n_patch",type=int,default=100)
+parser.add_argument("--n_patch",type=int,default=10)
 parser.add_argument("--batch_size",type=int,default=64)
 parser.add_argument("--root",type=str,default='/Users/jui/Downloads/Data/')
 parser.add_argument("--data_name",type=str,default='MICCAI2008')
@@ -71,7 +71,7 @@ print('data name = '+data_name)
 print('----------------------------------------------')
 
 # Preprocessing
-pp = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, True, True, data_name, root, True)
+pp = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, True)
 
 p_path, l_path = pp.preprocess()
 
@@ -91,10 +91,12 @@ while True:
 
     x = np.zeros([batch_size, n_channel, args.patch_size*n_mode, args.patch_size, args.patch_size])
     y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
-    
+
     p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
     l = io.imread(m_l_path[0], plugin='simpleitk').astype(float)
     
+    print(p.shape)
+    print(l.shape)
     x[cnt-1,0] = p
     y[cnt-1,0] = l
 

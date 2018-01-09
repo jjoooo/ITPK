@@ -180,13 +180,14 @@ class Preprocessing(object):
             pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
             pair_p, pair_l, self.center_labels = pl.make_patch(normed_slices, self.center_labels)
             print('------------------------------idx = {} & num of patches = {}'.format(idx, len(pair_p)))
-
+            print('patch size = {}'.format(pair_p[0].shape))
+            print('label size = {}'.format(pair_l[0].shape))
             patient_n = 0
             for p,l in zip(pair_p, pair_l):
                 temp = p_path+'/{}.mha'.format(patch_n)
                 sitk.WriteImage(sitk.GetImageFromArray(pair_p), temp)
 
-                temp = l_path+'/{}_l.mha'.format(patch_n)     
+                temp = l_path+'/{}_l.mha'.format(patch_n)
                 sitk.WriteImage(sitk.GetImageFromArray(pair_l), temp)
 
                 patch_n += 1
