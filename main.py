@@ -115,6 +115,9 @@ for pp,lp in zip(patch_path, label_path):
 
     cnt += 1
 
+    model_path = './model'
+    if not os.path.exists(model_path):
+            os.makedirs(model_path)
     if output_cnt % 50 ==0:
         print('[{}] -------> loss : {}'.format(output_cnt, loss))
         torch.save(unet.state_dict(),'./model/miccai_{}.pkl'.format(output_cnt))
