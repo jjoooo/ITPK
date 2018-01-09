@@ -167,7 +167,7 @@ class Preprocessing(object):
         if not os.path.exists(l_path):
             os.makedirs(l_path)
             
-        # if len(glob(p_path)) > 0: return p_path, l_path
+        # if len(glob(p_path+'/**')) > 0: return p_path, l_path
         patch_n = 0
         for idx, patient in enumerate(self.patients):
 
