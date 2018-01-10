@@ -5,6 +5,7 @@ from glob import glob
 from skimage import io
 from skimage.filters.rank import entropy
 from skimage.morphology import disk
+import SimpleITK as sitk
 from numpy.lib import stride_tricks
 
 import warnings
@@ -141,6 +142,34 @@ class Patches3d(object):
         center_labels += center_l
 
         return patches, labels, center_labels
+
+    def test_make_patch(self, volume, p_path, patient_idx):
+        patches = []
+        idx,d,h,w = volume.shape
+        cnt = 0
+        for z in range(d):
+            for y in range(h):
+                for x in range(w): 
+                    d1 = z-int(self.d/2)
+                    d2 = z+int(self.d/2)
+                    h1 = y-int(self.h/2)
+                    h2 = y+int(self.h/2)
+                    w1 = x-int(self.w/2)
+                    w2 = x+int(self.w/2)
+
+                    if d1 < 0 or d2 > d or h1 < 0 or h2 > h or w1 < 0 or w2 > w:
+                        continue
+                    
+                    for m in range(idx):
+                        patch = volume[m, d1:d2, h1:h2, w1:w2]
+                        if m==0:
+                            patch_mode = patch
+                        else:
+                            patch_mode = np.concatenate((patch_mode, patch))
+
+                    temp = p_path+'/{}_{}_{}.mha'.format(z, y, x)
+                    sitk.WriteImage(sitk.GetImageFromArray(patch_mode), temp)
+                    cnt += 1
 
 if __name__ == '__main__':
     pass

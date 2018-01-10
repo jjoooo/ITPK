@@ -37,17 +37,26 @@ class Preprocessing(object):
         self.ext = ''
 
         if self.data_name == 'BRATS2015':
-            self.path = self.root_path + '/Original_Data/Training/HGG'
+            if train_bl:
+                self.path = self.root_path + '/Original_Data/Training/HGG'
+            else:
+                self.path = self.root_path + '/Original_Data/Testing/HGG_LGG'
             self.ext = '.mha'
         elif self.data_name == 'MICCAI2008':
-            self.path = self.root_path + '/*train_Part*'
+            if train_bl:
+                self.path = self.root_path + '/training'
+            else:
+                self.path = self.root_path + '/test'
             self.ext = '.nhdr'
 
         self.patients = glob(self.path + '/**')
 
         self.center_labels = []
 
-        self.slices_by_mode = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
+        if train_bl:
+            self.slices_by_mode = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
+        else:
+            self.slices_by_mode = np.zeros((self.num_mode-1, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
         
     def _normalize(self, slice):
         # remove outlier
@@ -61,7 +70,7 @@ class Preprocessing(object):
             return (slice - np.mean(slice)) / np.std(slice)
 
     def norm_slices(self):
-        print('Normalizing slices...')
+        print('         -> Normalizing slices...')
         normed_slices = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
         for slice_ix in range(self.volume_size[0]):
             normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
@@ -76,7 +85,7 @@ class Preprocessing(object):
                 # if slice_ix==76:
                 #     io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
 
-        print('Done.')
+        print('         -> Done.')
         return normed_slices
 
     def path_glob(self, data_name, path):
@@ -97,7 +106,7 @@ class Preprocessing(object):
         return flair, t1, t1_n4, t2, gt
 
     def volume2slices(self, patient):
-        print('Loading scans...')
+        print('         -> Loading scans...')
 
         mode = []
         # directories to each protocol (5 total)
@@ -130,7 +139,7 @@ class Preprocessing(object):
 
         for scan_idx in range(len(mode)):
             self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
-        print('Done.')
+        print('         -> Done.')
 
         return True
 
@@ -139,11 +148,11 @@ class Preprocessing(object):
         img=sitk.Cast(img, sitk.sitkFloat32)
         img_mask=sitk.BinaryThreshold(img, 0, 0)
         
-        print('-> Applyling bias correction...')
+        print('             -> Applyling bias correction...')
         #corrector = sitk.N4BiasFieldCorrectionImageFilter()
         #corrected_img = corrector.Execute(img, img_mask)
         corrected_img = sitk.N4BiasFieldCorrection(img, img_mask, 0.001, [50,50,30,20])
-        print('-> Done.')
+        print('             -> Done.')
         sitk.WriteImage(corrected_img, path.replace(self.ext, '__n.mha'))
 
     def save_labels(self, labels):
@@ -160,14 +169,17 @@ class Preprocessing(object):
 
     def preprocess(self):
 
-        p_path = self.root_path+'/patch'
-        l_path = self.root_path+'/label'
+        p_path = self.root_path+'/patch/patch_{}'.format(self.patch_size[0])
+        l_path = self.root_path+'/label/label_{}'.format(self.patch_size[0])
         if not os.path.exists(p_path):
             os.makedirs(p_path)
         if not os.path.exists(l_path):
             os.makedirs(l_path)
+      
+        if len(glob(p_path+'/**')) >= self.num_patch*self.num_class:
+            print('         -> already training patches exist')
+            return p_path, l_path
             
-        # if len(glob(p_path+'/**')) > 0: return p_path, l_path
         patch_n = 0
         for idx, patient in enumerate(self.patients):
 
@@ -177,11 +189,9 @@ class Preprocessing(object):
             normed_slices = self.norm_slices()
 
             # run patch_extraction
-            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
+            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch/len(self.patients))
             pair_p, pair_l, self.center_labels = pl.make_patch(normed_slices, self.center_labels)
             print('------------------------------idx = {} & num of patches = {}'.format(idx, len(pair_p)))
-            print('patch size = {}'.format(pair_p[0].shape))
-            print('label size = {}'.format(pair_l[0].shape))
             patient_n = 0
             for p,l in zip(pair_p, pair_l):
                 temp = p_path+'/{}.mha'.format(patch_n)
@@ -203,6 +213,59 @@ class Preprocessing(object):
                 io.imsave(fn, patches[m][p][7])
         '''
         return p_path, l_path
+
+    def test_preprocess(self):
+
+        patch_n = 0
+        test_path = self.root_path+'/test_patch_ps{}_n4_{}'.format(self.patch_size[0], self.n4bias)
+        for idx, patient in enumerate(self.patients):
+            p_path = test_path+'/{}'.format(idx)
+
+            if not os.path.exists(p_path):
+                os.makedirs(p_path)
+
+            pn = self.volume_size[0]-int(self.patch_size[0]/2)
+            if len(glob(p_path+'/**')) >= pn*pn*pn:
+                print('         -> already test patches exist')
+                continue
+
+            flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
+            t1 = [scan for scan in t1s if scan not in t1_n4]
+
+            try:
+                if not self.n4bias:
+                    if len(t1) > 1:
+                        mode = [flair[0], t1[0], t1[1], t2[0]]
+                    else:
+                        mode = [flair[0], t1[0], t2[0]]
+                else:
+                    if self.n4bias_apply:
+                        for im in t1:
+                            self.n4itk_norm(im) # n4 normalize
+
+                    nm = '/*T1*_n.mha'
+                    if self.data_name == 'BRATS2015': nm = '/*T1*/'+nm
+
+                    t1_n4 = glob(patient + nm)
+
+                    if len(t1_n4) > 1:
+                        mode = [flair[0], t1_n4[0], t1_n4[1], t2[0]]
+                    else:
+                        mode = [flair[0], t1_n4[0], t2[0]]
+            except IndexError:
+                print('ERR(index err) : ' + patient)
+                return test_path
+
+            for scan_idx in range(len(mode)):
+                self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
+
+            normed_slices = self.norm_slices()
+
+            # run patch_extraction
+            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
+            pl.test_make_patch(normed_slices, p_path, idx)
+            print('------------------------------idx = {}'.format(idx))
+            return test_path
 
 if __name__ == '__main__':
     pass

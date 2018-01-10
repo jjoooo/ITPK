@@ -95,10 +95,14 @@ optimizer = torch.optim.Adam(unet.parameters(),lr=lr)
 file = open('./lr{}_ps{}_mse_loss'.format(lr,patch_size[0]), 'w')
 file_dsc = open('./lr{}_ps{}_DSC'.format(lr,patch_size[0]), 'w')
 
-all_num_patches = len(glob(p_path))
-tr_num = int(all_num_patches*((fold_val-1)/fold_val))
+model_path = './model/model_ps{}_bs{}_np{}_lr{}'.format(args.patch_size, batch_size, n_patch, lr)
+if not os.path.exists(model_path):
+    os.makedirs(model_path)
+
+all_num_patches = len(glob(p_path+'/**'))
+tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
 val_num = all_num_patches - tr_num
-print('{} fold-validation : tr={}, test={}'.format(fold_val, tr_num, all_num_patches-tr_num))
+print('{} fold-validation : tr={}, test={}, in {}'.format(fold_val, tr_num, all_num_patches-tr_num, all_num_patches))
 
 DSC = 0.0
 for it in range(fold_val):
@@ -107,11 +111,12 @@ for it in range(fold_val):
 
     val_idx_start = it * val_num
     val_idx_end = val_idx_start + val_num
-
+    print('validation patch idx : {} - {}'.format(val_idx_start, val_idx_end))
     patch_n = 0
     
     while True:
         if patch_n >= all_num_patches: break
+        if len(glob(model_path+'/**'))>0: break
         if patch_n < val_idx_start or patch_n >= val_idx_end:
             
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
@@ -145,12 +150,9 @@ for it in range(fold_val):
                 cnt = 1
 
             cnt += 1
-            model_path = './model/model_ps{}_bs{}_np{}_lr{}'.format(args.patch_size, batch_size, n_patch, lr)
-            if not os.path.exists(model_path):
-                os.makedirs(model_path)
-            if output_cnt % 100 ==0:
+            
+            if output_cnt % 1000 ==0:
                 torch.save(unet.state_dict(),model_path+'/miccai_{}.pkl'.format(output_cnt))
-                print('-----------------------------> Save : '+model_path+'/miccai_{}.pkl'.format(output_cnt))
 
         patch_n += 1
 
