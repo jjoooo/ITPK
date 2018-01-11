@@ -80,9 +80,9 @@ print('----------------------------------------------')
 tr = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, True)
 # test = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, False)
 
-print('Create training patches')
+print('\nCreate training patches\n')
 p_path, l_path = tr.preprocess()
-print('Done.')
+print('\nDone.\n')
 # print('Create test patches')
 # test_p_path = test.test_preprocess()
 # print('Done.')
@@ -92,10 +92,10 @@ print('Done.')
 unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
 optimizer = torch.optim.Adam(unet.parameters(),lr=lr)
 
-file = open('./lr{}_ps{}_mse_loss'.format(lr,patch_size[0]), 'w')
-file_dsc = open('./lr{}_ps{}_DSC'.format(lr,patch_size[0]), 'w')
+file = open('./lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+file_dsc = open('./lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
 
-model_path = './model/model_ps{}_bs{}_np{}_lr{}'.format(args.patch_size, batch_size, n_patch, lr)
+model_path = './model/model_ps{}_bs{}_np{}_lr{}_{}fold'.format(args.patch_size, batch_size, n_patch, lr, fold_val)
 if not os.path.exists(model_path):
     os.makedirs(model_path)
 
@@ -111,17 +111,21 @@ for it in range(fold_val):
 
     val_idx_start = it * val_num
     val_idx_end = val_idx_start + val_num
-    print('validation patch idx : {} - {}'.format(val_idx_start, val_idx_end))
+    print('{} fold validation patch idx : {} - {}'.format(it, val_idx_start, val_idx_end))
     patch_n = 0
     
     while True:
-        if patch_n >= all_num_patches: break
+        if patch_n >= all_num_patches:  
+            print('ERR patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
+            break
         # if len(glob(model_path+'/**'))>0: break
         if patch_n < val_idx_start or patch_n >= val_idx_end:
             
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
             m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
-            if not m_p_path or not m_l_path: break
+            if not m_p_path or not m_l_path: 
+                print('ERR file not exists')
+                continue
 
             x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
             y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
@@ -140,7 +144,7 @@ for it in range(fold_val):
                 y = Variable(torch.from_numpy(y).long()).cuda()
                 output = unet.forward(x)
                 loss = loss_function(output,y)
-                file.write('batch {} \t: loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
+                file.write('batch {} \t: loss {}\n'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
                 print('batch {} \t-------> loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
 
                 loss.backward()
@@ -162,12 +166,17 @@ for it in range(fold_val):
     dice = 0.0
 
     while True:
-        if patch_n >= all_num_patches: break
+        if patch_n >= all_num_patches: 
+            print('ERR patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
+            break
+
         if patch_n >= val_idx_start and patch_n < val_idx_end:
-            
+            print(p_path)
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
             m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
-            if not m_p_path or not m_l_path: break
+            if not m_p_path or not m_l_path: 
+                print('ERR file not exists')
+                break
 
             x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
             y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
@@ -205,7 +214,7 @@ for it in range(fold_val):
         patch_n += 1
     
     DSC += dice/(output_cnt-1)
-    file_dsc.write('{} fold-validation : DSC={}\n'.format(it, DSC))
+    file_dsc.write('{} fold-validation : DSC={}\n'.format(it, dice/(output_cnt-1)))
 
 DSC = DSC/fold_val
 file_dsc.write("=================>>>> Result={}\n".format(DSC))

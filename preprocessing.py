@@ -169,14 +169,14 @@ class Preprocessing(object):
 
     def preprocess(self):
 
-        p_path = self.root_path+'/patch/patch_{}'.format(self.patch_size[0])
-        l_path = self.root_path+'/label/label_{}'.format(self.patch_size[0])
+        p_path = self.root_path+'/patch/patch_{}_{}'.format(self.patch_size[0], self.num_patch*self.num_class)
+        l_path = self.root_path+'/label/label_{}_{}'.format(self.patch_size[0], self.num_patch*self.num_class)
         if not os.path.exists(p_path):
             os.makedirs(p_path)
         if not os.path.exists(l_path):
             os.makedirs(l_path)
       
-        if len(glob(p_path+'/**')) >= (self.num_patch*len(self.patients))*0.9:
+        if len(glob(p_path+'/**')) >= self.num_patch*0.9:
             print('         -> already training patches exist')
             return p_path, l_path
             
