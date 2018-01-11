@@ -116,7 +116,7 @@ for it in range(fold_val):
     
     while True:
         if patch_n >= all_num_patches: break
-        if len(glob(model_path+'/**'))>0: break
+        # if len(glob(model_path+'/**'))>0: break
         if patch_n < val_idx_start or patch_n >= val_idx_end:
             
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
@@ -140,8 +140,8 @@ for it in range(fold_val):
                 y = Variable(torch.from_numpy(y).long()).cuda()
                 output = unet.forward(x)
                 loss = loss_function(output,y)
-                file.write(str(loss)+"\n")
-                print('batch {}\nloss {}'.format(output_cnt-1, loss))
+                file.write('batch {} \t: loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
+                print('batch {} \t-------> loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
 
                 loss.backward()
                 optimizer.step()
@@ -182,20 +182,26 @@ for it in range(fold_val):
             y[cnt-1,0] = l
 
             if cnt % batch_size == 0:
-                x = Variable(torch.from_numpy(x).float()).cuda()
-                y = Variable(torch.from_numpy(y).long()).cuda()
-                output = unet.forward(x)
+                x_tensor = Variable(torch.from_numpy(x).float()).cuda()
+                y_tensor = Variable(torch.from_numpy(y).long()).cuda()
+                output = unet.forward(x_tensor)
                 
-                # DSC
-                y_arr = y.cpu().numpy()
-                output_arr = output.cpu().numpy()
+                # one hot encoding
+                idx1 = output[:,0]<output[:,1]
+                idx2 = y_tensor[:,0][idx1]==1
+                idx1 = idx1.data.cpu().numpy()
+                idx2 = idx2.data.cpu().numpy()
 
-                TP = np.sum(output_arr[y_arr==1])
-                dice += TP*2.0 / (np.sum(output_arr) + np.sum(y_arr))
+                # DSC
+                output_arr = output.data.cpu().numpy()
+                
+                TP = np.sum(idx2*1)
+                dice += TP*2.0 / (np.sum(idx1*1) + np.sum(y))
 
                 output_cnt += 1
                 cnt = 1
-            cnt += 1
+            else:
+                cnt += 1
         patch_n += 1
     
     DSC += dice/(output_cnt-1)

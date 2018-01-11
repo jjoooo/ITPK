@@ -176,7 +176,7 @@ class Preprocessing(object):
         if not os.path.exists(l_path):
             os.makedirs(l_path)
       
-        if len(glob(p_path+'/**')) >= self.num_patch*self.num_class:
+        if len(glob(p_path+'/**')) >= (self.num_patch*len(self.patients))*0.9:
             print('         -> already training patches exist')
             return p_path, l_path
             
@@ -191,7 +191,7 @@ class Preprocessing(object):
             # run patch_extraction
             pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch/len(self.patients))
             pair_p, pair_l, self.center_labels = pl.make_patch(normed_slices, self.center_labels)
-            print('------------------------------idx = {} & num of patches = {}'.format(idx, len(pair_p)))
+            print('-----------------------idx = {} & num of patches = {}'.format(idx, len(pair_p)))
             patient_n = 0
             for p,l in zip(pair_p, pair_l):
                 temp = p_path+'/{}.mha'.format(patch_n)
