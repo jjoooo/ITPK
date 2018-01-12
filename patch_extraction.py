@@ -134,6 +134,21 @@ class Patches3d(object):
         if t == -1:
             return False
 
+        # 80th entropy percentile
+        m_ent = 0
+        ent = np.ndarray([self.h,self.w])
+        for i in range(self.d):
+            l_ent = entropy(patch[i].astype(int), disk(self.h))
+            if m_ent < np.mean(l_ent):
+                m_ent = np.mean(l_ent)
+                ent = l_ent
+
+        top_ent = np.percentile(ent, 90)
+
+        # if 80th entropy percentile = 0
+        if top_ent == 0:
+            return False  
+
         return True
 
     def make_patch(self, volume, center_labels):
