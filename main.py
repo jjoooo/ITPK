@@ -92,12 +92,16 @@ print('\nDone.\n')
 unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
 optimizer = torch.optim.Adam(unet.parameters(),lr=lr)
 
-file = open('./lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
-file_dsc = open('./lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+file = open('./loss/lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+file_dsc = open('./dsc/lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
 
 model_path = './model/model_ps{}_bs{}_np{}_lr{}_{}fold'.format(args.patch_size, batch_size, n_patch, lr, fold_val)
 if not os.path.exists(model_path):
     os.makedirs(model_path)
+if not os.path.exists('./loss'):
+    os.makedirs('./loss')
+if not os.path.exists('./dsc'):
+    os.makedirs('./dsc')
 
 all_num_patches = len(glob(p_path+'/**'))
 tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
@@ -116,11 +120,11 @@ for it in range(fold_val):
     
     while True:
         if patch_n >= all_num_patches:  
-            print('ERR patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
+            print('Training done. patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
             break
         # if len(glob(model_path+'/**'))>0: break
-        if patch_n < val_idx_start or patch_n >= val_idx_end:
-            
+        # if patch_n < val_idx_start or patch_n >= val_idx_end:
+        if patch_n >= val_idx_start and patch_n < val_idx_end:
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
             m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
             if not m_p_path or not m_l_path: 
@@ -149,7 +153,6 @@ for it in range(fold_val):
 
                 loss.backward()
                 optimizer.step()
-
                 output_cnt += 1
                 cnt = 1
 
@@ -162,16 +165,15 @@ for it in range(fold_val):
 
     cnt = 1
     output_cnt = 1
-    patch_n = val_idx_start
+    patch_n = val_idx_start 
     dice = 0.0
 
     while True:
         if patch_n >= all_num_patches: 
-            print('ERR patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
+            print('Validation done. patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
             break
 
         if patch_n >= val_idx_start and patch_n < val_idx_end:
-            print(p_path)
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
             m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
             if not m_p_path or not m_l_path: 
@@ -206,7 +208,10 @@ for it in range(fold_val):
                 
                 TP = np.sum(idx2*1)
                 dice += TP*2.0 / (np.sum(idx1*1) + np.sum(y))
-
+                print('TP={}'.format(TP))
+                print('predic sum={}'.format(np.sum(idx1*1)))
+                print('gt sum={}'.format(np.sum(y)))
+                print('dice={}'.format(TP*2.0 / (np.sum(idx1*1) + np.sum(y))))
                 output_cnt += 1
                 cnt = 1
             else:
@@ -214,6 +219,7 @@ for it in range(fold_val):
         patch_n += 1
     
     DSC += dice/(output_cnt-1)
+    print('{} fold-validation : DSC={}\n'.format(it, dice/(output_cnt-1)))
     file_dsc.write('{} fold-validation : DSC={}\n'.format(it, dice/(output_cnt-1)))
 
 DSC = DSC/fold_val
