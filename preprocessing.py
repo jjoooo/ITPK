@@ -217,7 +217,7 @@ class Preprocessing(object):
     def test_preprocess(self):
 
         patch_n = 0
-        test_path = self.root_path+'/test_patch_ps{}_n4_{}'.format(self.patch_size[0], self.n4bias)
+        test_path = self.root_path+'/patch/patch_{}_{}_test'.format(self.patch_size[0], self.num_patch)
         for idx, patient in enumerate(self.patients):
             p_path = test_path+'/{}'.format(idx)
 

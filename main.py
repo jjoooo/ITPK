@@ -12,7 +12,7 @@ from preprocessing import Preprocessing
 # Learning
 import torch
 import torch.nn as nn
-import torch.utils as utils
+import torch.utils as utilss
 import torch.nn.init as init
 import torch.utils.data as data
 import torchvision.utils as v_utils
@@ -78,6 +78,10 @@ print('N fold validation = {}'.format(fold_val))
 print('Training = {}'.format(train_bool))
 print('----------------------------------------------')
 
+file_loss = open('./loss/lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+file_dsc = open('./dsc/lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+
+model_path = './model/model_ps{}_bs{}_np{}_lr{}_{}fold'.format(args.patch_size, batch_size, n_patch, lr, fold_val)
 
 if train_bool:
     # Preprocessing
@@ -92,10 +96,7 @@ if train_bool:
     unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
     optimizer = torch.optim.Adam(unet.parameters(),lr=lr)
     optimizer.zero_grad()
-    file = open('./loss/lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
-    file_dsc = open('./dsc/lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
-
-    model_path = './model/model_ps{}_bs{}_np{}_lr{}_{}fold'.format(args.patch_size, batch_size, n_patch, lr, fold_val)
+    
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     if not os.path.exists('./loss'):
@@ -148,7 +149,7 @@ if train_bool:
                     y = Variable(torch.from_numpy(y).long()).cuda()
                     output = unet.forward(x)
                     loss = loss_function(output,y)
-                    file.write('batch {} \t: loss {}\n'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
+                    file_loss.write('batch {} \t: loss {}\n'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
                     print('batch {} \t-------> loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
 
                     loss.backward()
@@ -231,22 +232,26 @@ if train_bool:
 else:
     
     # test
+    if 0:
+        test = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, train_bool)
 
-    test = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, train_bool)
-
-    print('\nCreate test patches\n')
-    test_p_path = test.test_preprocess()
-    print('\nDone.\n')
+        print('\nCreate test patches\n')
+        test_p_path = test.test_preprocess()
+        print('\nDone.\n')
+    else:
+        test_p_path = root + '/patch/patch_{}_{}_test'.format(args.patch_size, args.n_patch)
 
     im_path = glob(test_p_path + '/**')
 
     # model loading
-    models_path = glob('./model/model_ps{}_bs{}_np{}_lr{}/miccai_2300.pkl'.format(args.patch_size, batch_size, n_patch, lr))
+    models_path = glob(model_path)
+    model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
 
-    if not os.path.isfile(models_path):
-        print(models_path+' -> model not exists')
+    if not os.path.isfile(model):
+        print(model+' -> model not exists')
+        model = model_path+'/miccai_{}.pkl'.format((len(models_path1)-1)*100)
 
-    unet.load_state_dict(torch.load(models_path))
+    unet.load_state_dict(torch.load(model))
 
     for idx, im in enumerate(im_path):
 
