@@ -78,14 +78,10 @@ print('----------------------------------------------')
 
 # Preprocessing
 tr = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, True)
-# test = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, False)
 
 print('\nCreate training patches\n')
 p_path, l_path = tr.preprocess()
 print('\nDone.\n')
-# print('Create test patches')
-# test_p_path = test.test_preprocess()
-# print('Done.')
 
 # Training
 # net
@@ -230,8 +226,15 @@ file_dsc.write("=================>>>> Result={}\n".format(dice))
 '''
 # test
 
-# model loading
+test = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, False)
+
+print('\nCreate test patches\n')
+test_p_path = test.test_preprocess()
+print('\nDone.\n')
+
 im_path = glob(test_p_path + '/**')
+
+# model loading
 models_path = glob('./model/model_ps{}_bs{}_np{}_lr{}/miccai_2300.pkl'.format(args.patch_size, batch_size, n_patch, lr))
 
 if not os.path.isfile(models_path):
