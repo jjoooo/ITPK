@@ -48,14 +48,15 @@ class Patches3d(object):
 
         print('num patch = {}'.format(self.num_patch))
         patches, labels, center_l = [], [], []
-        for c in range(self.num_class):
-            print('CLASS={}'.format(c))
-            # random patch each class
-            cnt = 0
+    
+        # random patch each class
+        cnt = 0
 
-            while cnt < self.num_patch:
+        while cnt < self.num_patch:
+            
+            for c in range(self.num_class):
                 l_idx = random.choice(c_l[c])
-              
+                
                 d1 = l_idx[0]-int(self.d/2)
                 d2 = l_idx[0]+int(self.d/2)
                 h1 = l_idx[1]-int(self.h/2)
@@ -64,13 +65,13 @@ class Patches3d(object):
                 w2 = l_idx[2]+int(self.w/2)
                 if d1 < 0 or d2 > self.volume_size[0] or h1 < 0 or h2 > self.volume_size[1] or w1 < 0 or w2 > self.volume_size[2]:
                     continue
-  
-                label = volume_l[d1:d2, h1:h2, w1:w2]
 
+                label = volume_l[d1:d2, h1:h2, w1:w2]
+            
                 # label filtering
                 if not self._labels_filtering(label, c):
                     continue
-      
+
                 # patch filtering
                 bool_p = True
                 for m in range(self.num_mode-1):
@@ -80,16 +81,18 @@ class Patches3d(object):
                         break
                 if not bool_p:
                     continue
-           
+            
                 for m in range(self.num_mode-1):
                     patch = volume[m, d1:d2, h1:h2, w1:w2]
                     if m==0:
                         patch_mode = patch
                     else:
                         patch_mode = np.concatenate((patch_mode, patch))
+
                 patches.append(patch_mode)
                 labels.append(label)
                 center_l += [c]
+
                 cnt += 1
                     
         return patches, labels, center_l

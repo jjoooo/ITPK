@@ -60,7 +60,7 @@ batch_size = args.batch_size
 n_patch = args.n_patch
 lr = args.learning_rate
 fold_val = args.fold_val
-train_bool = False
+train_bool = True
 
 print('----------------------------------------------')
 print('n_gpu = {}'.format(args.n_gpu))
@@ -233,7 +233,7 @@ else:
     
     # test
     if 0:
-        test = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, train_bool)
+        test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
 
         print('\nCreate test patches\n')
         test_p_path = test.test_preprocess()
