@@ -91,7 +91,7 @@ print('\nDone.\n')
 # net
 unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
 optimizer = torch.optim.Adam(unet.parameters(),lr=lr)
-
+optimizer.zero_grad()
 file = open('./loss/lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
 file_dsc = open('./dsc/lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
 
@@ -123,8 +123,8 @@ for it in range(fold_val):
             print('Training done. patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
             break
         # if len(glob(model_path+'/**'))>0: break
-        # if patch_n < val_idx_start or patch_n >= val_idx_end:
-        if patch_n >= val_idx_start and patch_n < val_idx_end:
+        if patch_n < val_idx_start or patch_n >= val_idx_end:
+        #if patch_n >= val_idx_start and patch_n < val_idx_end:
             m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
             m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
             if not m_p_path or not m_l_path: 
@@ -195,35 +195,37 @@ for it in range(fold_val):
             if cnt % batch_size == 0:
                 x_tensor = Variable(torch.from_numpy(x).float()).cuda()
                 y_tensor = Variable(torch.from_numpy(y).long()).cuda()
+
                 output = unet.forward(x_tensor)
-                
+                output_arr = output.data.cpu().numpy()
+
                 # one hot encoding
-                idx1 = output[:,0]<output[:,1]
-                idx2 = y_tensor[:,0][idx1]==1
-                idx1 = idx1.data.cpu().numpy()
-                idx2 = idx2.data.cpu().numpy()
+                idx = output_arr[:,0]<output_arr[:,1]
+                idx = idx.astype(np.int64)
 
                 # DSC
-                output_arr = output.data.cpu().numpy()
-                
-                TP = np.sum(idx2*1)
-                dice += TP*2.0 / (np.sum(idx1*1) + np.sum(y))
-                print('TP={}'.format(TP))
-                print('predic sum={}'.format(np.sum(idx1*1)))
-                print('gt sum={}'.format(np.sum(y)))
-                print('dice={}'.format(TP*2.0 / (np.sum(idx1*1) + np.sum(y))))
+                denominator = idx.sum() + y.sum() 
+ 
+                idx[idx==0] = -1
+                intersection = idx==y
+                intersection = intersection.astype(np.int64)
+
+                dice = intersection.sum()*2 / denominator
+
+                print('denominator={}'.format(denominator))
+                print('predic sum={}'.format(idx.sum()))
+                print('gt sum={}'.format(y.sum()))
+                print('dice={}'.format(dice))
                 output_cnt += 1
                 cnt = 1
             else:
                 cnt += 1
         patch_n += 1
-    
-    DSC += dice/(output_cnt-1)
-    print('{} fold-validation : DSC={}\n'.format(it, dice/(output_cnt-1)))
-    file_dsc.write('{} fold-validation : DSC={}\n'.format(it, dice/(output_cnt-1)))
+ 
+    print('{} fold-validation : DSC={}\n'.format(it, dice))
+    file_dsc.write('{} fold-validation : DSC={}\n'.format(it, dice))
 
-DSC = DSC/fold_val
-file_dsc.write("=================>>>> Result={}\n".format(DSC))
+file_dsc.write("=================>>>> Result={}\n".format(dice))
 
 '''
 # test
@@ -284,4 +286,4 @@ for idx, im in enumerate(im_path):
     for slice in output_volume:
         io.imsave(path+'/{}.PNG'.format(s_cnt), slice)    
         s_cnt += 1
-   '''
+'''
