@@ -28,12 +28,12 @@ parser.add_argument("--n_gpu",type=int,default=8)
 parser.add_argument("--patch_size",type=int,default=32)
 parser.add_argument("--n_patch",type=int,default=10000)
 parser.add_argument("--batch_size",type=int,default=32)
-parser.add_argument("--root",type=str,default='/mnt/disk1/data/MRI_Data/')
+parser.add_argument("--root",type=str,default='/mnt/disk2/data/MRI_Data/')
 parser.add_argument("--data_name",type=str,default='MICCAI2008')
 parser.add_argument("--n_class",type=int,default=2)
 parser.add_argument("--n_mode",type=int,default=4)
 parser.add_argument("--volume_size",type=int,default=512)
-parser.add_argument("--learning_rate",type=float,default=0.001)
+parser.add_argument("--learning_rate",type=float,default=0.0002)
 parser.add_argument("--fold_val",type=int,default=5)
 args = parser.parse_args()
 
@@ -60,7 +60,7 @@ batch_size = args.batch_size
 n_patch = args.n_patch
 lr = args.learning_rate
 fold_val = args.fold_val
-train_bool = True
+train_bool = False
 
 print('----------------------------------------------')
 print('n_gpu = {}'.format(args.n_gpu))
@@ -78,14 +78,20 @@ print('N fold validation = {}'.format(fold_val))
 print('Training = {}'.format(train_bool))
 print('----------------------------------------------')
 
+if not os.path.exists('./loss'):
+    os.makedirs('./loss')
+if not os.path.exists('./dsc'):
+    os.makedirs('./dsc')
+
 file_loss = open('./loss/lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
 file_dsc = open('./dsc/lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+test_file_dsc = open('./dsc/TEST_lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
 
 model_path = './model/model_ps{}_bs{}_np{}_lr{}_{}fold'.format(args.patch_size, batch_size, n_patch, lr, fold_val)
 
 if train_bool:
     # Preprocessing
-    tr = Preprocessing(n_mode, n_class, n_patch/n_class, volume_size, patch_size, False, False, data_name, root, train_bool)
+    tr = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
 
     print('\nCreate training patches\n')
     p_path, l_path = tr.preprocess()
@@ -99,10 +105,6 @@ if train_bool:
     
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-    if not os.path.exists('./loss'):
-        os.makedirs('./loss')
-    if not os.path.exists('./dsc'):
-        os.makedirs('./dsc')
 
     all_num_patches = len(glob(p_path+'/**'))
     tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
@@ -110,9 +112,11 @@ if train_bool:
     print('{} fold-validation : tr={}, test={}, in {}'.format(fold_val, tr_num, all_num_patches-tr_num, all_num_patches))
 
     DSC = 0.0
+    minDice = 1.0
+    maxDice = 0.0
+    output_cnt = 1
     for it in range(fold_val):
         cnt = 1
-        output_cnt = 1
 
         val_idx_start = it * val_num
         val_idx_end = val_idx_start + val_num
@@ -121,7 +125,7 @@ if train_bool:
         
         while True:
             if patch_n >= all_num_patches:  
-                print('Training done. patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
+                print('Training done')
                 break
             # if len(glob(model_path+'/**'))>0: break
             if patch_n < val_idx_start or patch_n >= val_idx_end:
@@ -159,16 +163,16 @@ if train_bool:
 
                 cnt += 1
                 
-                if output_cnt % 1000 ==0:
+                if output_cnt % 100 ==0:
                     torch.save(unet.state_dict(),model_path+'/miccai_{}.pkl'.format(output_cnt))
 
             patch_n += 1
 
         cnt = 1
-        output_cnt = 1
         patch_n = val_idx_start 
-        dice = 0.0
-
+        
+        DICE = 0.0
+        dice_cnt = 0
         while True:
             if patch_n >= all_num_patches: 
                 print('Validation done. patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
@@ -181,8 +185,8 @@ if train_bool:
                     print('ERR file not exists')
                     break
 
-                x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
-                y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
+                x = np.zeros([batch_size, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
+                y = np.zeros([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
 
                 p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
                 l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
@@ -200,46 +204,61 @@ if train_bool:
                     output = unet.forward(x_tensor)
                     output_arr = output.data.cpu().numpy()
 
-                    # one hot encoding
-                    idx = output_arr[:,0]<output_arr[:,1]
-                    idx = idx.astype(np.int64)
-
-                    # DSC
-                    denominator = idx.sum() + y.sum() 
-    
-                    idx[idx==0] = -1
-                    intersection = idx==y
-                    intersection = intersection.astype(np.int64)
-
-                    dice = intersection.sum()*2 / denominator
-
-                    print('tp={}'.format(intersection.sum()*2))
-                    print('predic sum={}'.format(idx.sum()))
-                    print('gt sum={}'.format(y.sum()))
-                    print('-----> dice={}'.format(dice))
                     output_cnt += 1
                     cnt = 1
+
+                    # one hot encoding
+                  
+                    idx = output_arr[:,0]<output_arr[:,1]
+                    idx = idx.reshape([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                 
+                    print('predict sum={}'.format(idx.sum()))
+                    print('gt sum={}'.format(y.sum()))
+                    
+                    # DSC
+                    denominator = idx.sum() + y.sum() 
+                    print('denominator={}'.format(denominator))   
+                    idx[idx==0] = -1
+                    
+                    intersection = y==idx
+                    intersection = intersection.astype(np.int64)
+                    dice = intersection.sum()*2 / denominator
+
+                    print('tp={}'.format(intersection.sum()))
+ 
+                    if y.sum() != 0:
+                        print('{} dice={}'.format(dice_cnt, dice))
+                        file_dsc.write('{} dice={}\n'.format(dice_cnt, dice))
+                        DICE += dice
+                    
+                        if minDice > dice:
+                            minDice = dice
+                        if maxDice < dice:
+                            maxDice = dice
+                        dice_cnt += 1
                 else:
                     cnt += 1
             patch_n += 1
-    
-        print('{} fold-validation : DSC={}\n'.format(it, dice))
-        file_dsc.write('{} fold-validation : DSC={}\n'.format(it, dice))
+        
+        print('{} fold-validation : mean DSC={}'.format(it, DICE/dice_cnt))
+        print('{} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
+        file_dsc.write('--------------> {} fold-validation : DSC={}\n'.format(it, DICE/dice_cnt))
+        file_dsc.write('--------------> {} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
 
-    file_dsc.write("=================>>>> Result={}\n".format(dice))
-
+    file_dsc.write("=================>>>> mean DSC Result={}\n".format(DICE/dice_cnt))
+    file_dsc.write('=================>>>> min~max DSC={}~{}\n'.format(minDice, maxDice))
 
 else:
     
     # test
-    if 0:
+    if True:
         test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
-
+        unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
         print('\nCreate test patches\n')
         test_p_path = test.test_preprocess()
         print('\nDone.\n')
     else:
-        test_p_path = root + '/patch/patch_{}_{}_test'.format(args.patch_size, args.n_patch)
+        test_p_path = root + data_name + '/patch/patch_{}_{}_test'.format(args.patch_size, args.n_patch)
 
     im_path = glob(test_p_path + '/**')
 
@@ -249,15 +268,16 @@ else:
 
     if not os.path.isfile(model):
         print(model+' -> model not exists')
-        model = model_path+'/miccai_{}.pkl'.format((len(models_path1)-1)*100)
+        model = model_path+'/miccai_{}.pkl'.format((len(models_path)-1)*100)
 
     unet.load_state_dict(torch.load(model))
 
     for idx, im in enumerate(im_path):
 
         output_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
-        origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
+        DICE = 0.0
+        dice_cnt = 0
         for dd in range(volume_size[0]):
             for hh in range(volume_size[1]):
                 for ww in range(volume_size[2]):
@@ -271,19 +291,20 @@ else:
                     if d1 < 0 or d2 > d or h1 < 0 or h2 > h or w1 < 0 or w2 > w:
                         continue
                         
-                    p = test_p_path+'/{}_{}_{}.mha'.format(dd,hh,ww)
+                    p = im+'/{}_{}_{}.mha'.format(dd,hh,ww)
                     if not os.path.isfile(p):
                         print(p+' -> not exists')
                         continue
 
-                    x = np.zeros([1, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
+                    x = np.zeros([1, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
                     patch = io.imread(p, plugin='simpleitk').astype(float)
                     for m in range(n_mode-1):
                         d1 = m*args.patch_size
                         d2 = (m+1)*args.patch_size
-                        x[0,m] = p[d1:d2]
+                        x[0,m] = patch[d1:d2]
 
                     x_tensor = Variable(torch.from_numpy(x).float()).cuda()
+
                     output = unet.forward(x_tensor)
 
                     for m in range(n_mode):
@@ -294,18 +315,44 @@ else:
                     
                     output_volume[d1:d2, h1:h2, w1:w2] = patch_mode
 
-                    if origin_volume[d1:d2, h1:h2, w1:w2].sum() ==0:
-                        origin_volume[d1:d2, h1:h2, w1:w2] = x[0,0]
-
         # save
         thsd = 3 # max = n_mode+9 
-        output_volume = (output_volume>thsd)*1
+        output_volume = output_volume > thsd
+        output_volume = output_volume.astype(np.int64)
+
         path = './test/{}'.format(idx)
         if not os.path.exists(path):
             os.makedirs(path)
-        s_cnt = 0
-        for slice, origin_slice in zip(output_volume, origin_volume):
-            io.imsave(path+'/{}.PNG'.format(s_cnt), slice)    
-            io.imsave(path+'/{}_origin.PNG'.format(s_cnt), origin_slice)    
-            s_cnt += 1
-    
+        
+        for i, slice in enumerate(output_volume):
+            io.imsave(path+'/{}_predict.PNG'.format(i), slice)
+  
+        # DSC
+        label_path = glob('./test/{}/*label*'.format(idx))
+        origin_path = glob('./test/{}/*origin*'.format(idx))
+        label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
+        origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
+
+        c = 0
+        for l,o in zip(label_path, origin_path):
+            label_volume[c] = io.imread(l, plugin='simpleitk').astype(float)
+            origin_volume[c] = io.imread(o, plugin='simpleitk').astype(float)
+            c += 1
+
+        print('predict sum={}'.format(output_volume.sum()))
+        print('gt sum={}'.format(label_volume.sum()))
+
+        denominator = output_volume.sum() + label_volume.sum()
+        print('denominator={}'.format(denominator))
+        output_volume[output_volume==0] = -1
+
+        intersection = label_volume==output_volume
+        intersection = intersection.astype(np.int64)
+        dice = intersection.sum()*2 / denominator
+
+        print('tp={}'.format(intersection.sum()))
+
+        print('{} dice={}'.format(idx, dice))
+        test_file_dsc.write('{} dice={}\n'.format(idx, dice))
+
+ 

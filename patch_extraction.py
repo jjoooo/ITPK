@@ -180,7 +180,7 @@ class Patches3d(object):
                     if d1 < 0 or d2 > d or h1 < 0 or h2 > h or w1 < 0 or w2 > w:
                         continue
                     
-                    for m in range(idx):
+                    for m in range(idx-1):
                         patch = volume[m, d1:d2, h1:h2, w1:w2]
                         if m==0:
                             patch_mode = patch
@@ -188,7 +188,9 @@ class Patches3d(object):
                             patch_mode = np.concatenate((patch_mode, patch))
 
                     temp = p_path+'/{}_{}_{}.mha'.format(z, y, x)
+                    temp_l = p_path+'/{}_{}_{}_l.mha'.format(z, y, x)
                     sitk.WriteImage(sitk.GetImageFromArray(patch_mode), temp)
+                    sitk.WriteImage(sitk.GetImageFromArray(volume[-1,d1:d2, h1:h2, w1:w2]), temp_l)
                     cnt += 1
 
 if __name__ == '__main__':
