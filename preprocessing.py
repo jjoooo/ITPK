@@ -70,18 +70,18 @@ class Preprocessing(object):
         normed_slices = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
         for slice_ix in range(self.volume_size[0]):
             normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
-            if not train_bl:
-                if not os.path.exists('./test/{}'.format(idx)):
-                    os.makedirs('./test/{}'.format(idx))
-                io.imsave('./test/{}/{}_label.PNG'.format(idx,slice_ix), normed_slices[-1][slice_ix])
-                io.imsave('./test/{}/{}_origin.PNG'.format(idx,slice_ix), normed_slices[0][slice_ix])
             for mode_ix in range(self.num_mode-1):
                 normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
                 if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                 if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
-
+            if not train_bl:
+                path = self.root_path+'/test_PNG/{}'.format(idx)
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                io.imsave(path+'/{}_label.PNG'.format(slice_ix), normed_slices[-1][slice_ix])
+                io.imsave(path+'/{}_origin.PNG'.format(slice_ix), normed_slices[0][slice_ix])
                 # Test        
                 # if slice_ix==76:
                 #     io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])

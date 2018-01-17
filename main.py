@@ -254,7 +254,7 @@ else:
     if True:
         test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
         unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
-        print('\nCreate test patches\n')
+        print('\nCreate test patches...\n')
         test_p_path = test.test_preprocess()
         print('\nDone.\n')
     else:
@@ -320,7 +320,7 @@ else:
         output_volume = output_volume > thsd
         output_volume = output_volume.astype(np.int64)
 
-        path = './test/{}'.format(idx)
+        path = root + dataname + '/test_PNG/{}'.format(idx)
         if not os.path.exists(path):
             os.makedirs(path)
         
@@ -328,8 +328,8 @@ else:
             io.imsave(path+'/{}_predict.PNG'.format(i), slice)
   
         # DSC
-        label_path = glob('./test/{}/*label*'.format(idx))
-        origin_path = glob('./test/{}/*origin*'.format(idx))
+        label_path = glob(path + '/*label*')
+        origin_path = glob(path + '/*origin*')
         label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
         origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
