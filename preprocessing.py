@@ -257,7 +257,7 @@ class Preprocessing(object):
             # run patch_extraction
             # pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
             # pl.test_make_patch(normed_slices, p_path, idx)
-            print('------------------------------idx = {}'.format(idx))
+            print('----------------idx = {} volume saved'.format(idx))
         return test_path
 
 if __name__ == '__main__':

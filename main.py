@@ -35,6 +35,7 @@ parser.add_argument("--n_mode",type=int,default=4)
 parser.add_argument("--volume_size",type=int,default=512)
 parser.add_argument("--learning_rate",type=float,default=0.0002)
 parser.add_argument("--fold_val",type=int,default=5)
+parser.add_argument("--train_bl",type=int,default=1)
 args = parser.parse_args()
 
 import warnings
@@ -61,6 +62,8 @@ n_patch = args.n_patch
 lr = args.learning_rate
 fold_val = args.fold_val
 train_bool = True
+if args.train_bl == 0:
+    train_bool = False
 
 print('----------------------------------------------')
 print('n_gpu = {}'.format(args.n_gpu))
@@ -253,9 +256,9 @@ else:
     if True:
         test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
         unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
-        print('\nCreate test patches...\n')
+        print('\nCreate patch for test...')
         test_p_path = test.test_preprocess()
-        print('\nDone.\n')
+        print('Done.\n')
     else:
         test_p_path = root + data_name + '/test_VOL'
 
@@ -270,21 +273,22 @@ else:
         model = model_path+'/miccai_{}.pkl'.format((len(models_path)-1)*100)
 
     unet.load_state_dict(torch.load(model))
-
+    print('Model loading success.')
     for idx, im in enumerate(im_path):
 
         if not os.path.isfile(im):
             print(p+' -> not exists')
             continue
 
-        volume = io.imread(p, plugin='simpleitk').astype(float)
+        volume = io.imread(im, plugin='simpleitk').astype(float)
         output_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
         DICE = 0.0
         dice_cnt = 0
-        for dd in range(volume_size[0]):
-            for hh in range(volume_size[1]):
-                for ww in range(volume_size[2]):
+        print('Patch prediction start...')
+        for z in range(volume_size[0]):
+            for y in range(volume_size[1]):
+                for x in range(volume_size[2]):
                     d1 = z-int(patch_size[0]/2)
                     d2 = z+int(patch_size[0]/2)
                     h1 = y-int(patch_size[1]/2)
@@ -292,16 +296,13 @@ else:
                     w1 = x-int(patch_size[2]/2)
                     w2 = x+int(patch_size[2]/2)
 
-                    if d1 < 0 or d2 > d or h1 < 0 or h2 > h or w1 < 0 or w2 > w:
+                    if d1 < 0 or d2 > volume_size[0] or h1 < 0 or h2 > volume_size[1] or w1 < 0 or w2 > volume_size[2]:
                         continue
         
                     x = np.zeros([1, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
-                    patch = volume[d1:d2, h1:h2, w1:w2]
-
+              
                     for m in range(n_mode-1):
-                        dd1 = m*args.patch_size
-                        dd2 = (m+1)*args.patch_size
-                        x[0,m] = patch[dd1:dd2]
+                        x[0,m] = volume[m, d1:d2, h1:h2, w1:w2]
 
                     x_tensor = Variable(torch.from_numpy(x).float()).cuda()
 
@@ -314,7 +315,7 @@ else:
                             patch_mode += output[:,1].data.cpu().numpy()
                     
                     output_volume[d1:d2, h1:h2, w1:w2] = patch_mode
-
+        print('Done.')
         # save
         thsd = 3 # max = n_mode+9 
         output_volume = output_volume > thsd
