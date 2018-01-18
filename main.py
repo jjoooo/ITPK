@@ -108,8 +108,21 @@ if train_bool:
     optimizer = torch.optim.Adam(unet.parameters(),lr=lr)
     optimizer.zero_grad()
     
+    output_cnt = 1
+    # exist models
     if not os.path.exists(model_path):
         os.makedirs(model_path)
+    models_path = glob(model_path)
+    if len(models_path)>0:
+        md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
+        output_cnt = len(models_path)*1000+1
+
+        if not os.path.isfile(mdpath):
+            print(mdpath+' -> model not exists\n')
+            model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
+            output_cnt = len(models_path)*100+1
+
+        unet.load_state_dict(torch.load(md_path))
 
     all_num_patches = len(glob(p_path+'/**'))
     tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
@@ -119,7 +132,7 @@ if train_bool:
     DSC = 0.0
     minDice = 1.0
     maxDice = 0.0
-    output_cnt = 1
+
     for it in range(fold_val):
         cnt = 1
 
@@ -168,7 +181,7 @@ if train_bool:
 
                 cnt += 1
                 
-                if output_cnt % 100 ==0:
+                if output_cnt % 1000 ==0:
                     torch.save(unet.state_dict(),model_path+'/miccai_{}.pkl'.format(output_cnt))
 
             patch_n += 1
@@ -272,7 +285,7 @@ else:
 
     if not os.path.isfile(model):
         print(model+' -> model not exists\n')
-        model = model_path+'/miccai_{}.pkl'.format((len(models_path)-1)*100)
+        model = model_path+'/miccai_{}.pkl'.format((len(models_path)-1)*1000)
     
     unet.load_state_dict(torch.load(model))
     print('Model loading success.\n')
@@ -288,12 +301,12 @@ else:
         output_class = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
         DICE = 0.0
         dice_cnt = 0
-        strd = 4 # strides
+        strd = 8 # strides
         print('Patch prediction start...')
         tic = time.time()
-        for z in range(0,volume_size[0],strd):
-            for y in range(0,volume_size[1],strd):
-                for x in range(0,volume_size[2],strd):
+        for z in range(strd,volume_size[0],strd):
+            for y in range(strd,volume_size[1],strd):
+                for x in range(strd,volume_size[2],strd):
                     d1 = z-int(patch_size[0]/2)
                     d2 = z+int(patch_size[0]/2)
                     h1 = y-int(patch_size[1]/2)
@@ -351,12 +364,10 @@ else:
             io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
             io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class)
             i += 1
-        print('Volume saved')
+        print('Volume saved.')
         # DSC
         label_path = glob(path + '/*label*')
-        origin_path = glob(path + '/*origin*')
         label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
-        origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
         for idx, slice in enumerate(label_path):
             label_volume[idx] = io.imread(slice, plugin='simpleitk').astype(float)
