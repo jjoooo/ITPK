@@ -112,17 +112,22 @@ if train_bool:
     # exist models
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-    models_path = glob(model_path)
-    if len(models_path)>0:
+    models_path = glob(model_path+'/**')
+    if models_path:
         md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
         output_cnt = len(models_path)*1000+1
 
-        if not os.path.isfile(mdpath):
-            print(mdpath+' -> model not exists\n')
-            model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
+        if not os.path.isfile(md_path):
+            print(md_path+' -> model not exists\n')
+            md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
             output_cnt = len(models_path)*100+1
-
-        unet.load_state_dict(torch.load(md_path))
+            if not os.path.isfile(md_path):
+                print(md_path+' -> also this model not exists\n')
+                output_cnt = 1
+            else:
+                unet.load_state_dict(torch.load(md_path))
+        else:
+            unet.load_state_dict(torch.load(md_path))
 
     all_num_patches = len(glob(p_path+'/**'))
     tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
@@ -271,22 +276,24 @@ else:
     if True:
         test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
         unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
-        print('\nCreate patch for test...')
+        print('\nCreate volume for test...')
         test_p_path = test.test_preprocess()
         print('Done.\n')
     else:
         test_p_path = root + data_name + '/test_VOL'
 
     im_path = glob(test_p_path + '/**')
-    rescale_ft = 2 # 1/2
+   
     # model loading
-    models_path = glob(model_path)
+    models_path = glob(model_path+'/**')
     model = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
 
     if not os.path.isfile(model):
         print(model+' -> model not exists\n')
         model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
-    
+        if not os.path.isfile(model):
+            print(model+' -> also this model not exists\n')
+
     unet.load_state_dict(torch.load(model))
     print('Model loading success.\n')
     for idx, im in enumerate(im_path):
@@ -343,12 +350,12 @@ else:
             print(' -----> {}/{} success'.format(z,volume_size[0]))
         print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
         # save
-        thsd = pow(patch_size[0]/strd, 3)/5 # max = 4
+        thsd = pow(patch_size[0]/strd, 3)/4 
         print('threshold = {}\n'.format(thsd)) 
         output_class = output_class > thsd
         output_class = output_class.astype(np.int64)
 
-        path = root + dataname + '/test_PNG/{}'.format(idx)
+        path = root + data_name + '/test_PNG/{}'.format(idx)
         if not os.path.exists(path):
             os.makedirs(path)
 

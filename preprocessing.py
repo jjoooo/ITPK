@@ -171,7 +171,7 @@ class Preprocessing(object):
         if not os.path.exists(l_path):
             os.makedirs(l_path)
       
-        if len(glob(p_path+'/**')) >= self.num_patch*0.8:
+        if len(glob(p_path+'/**')) >= self.num_patch*0.7:
             print('         -> already training patches exist')
             return p_path, l_path
             
