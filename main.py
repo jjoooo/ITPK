@@ -5,6 +5,7 @@ import random
 
 # image data
 from skimage import io
+
 import SimpleITK as sitk
 
 from preprocessing import Preprocessing
@@ -96,9 +97,9 @@ if train_bool:
     # Preprocessing
     tr = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
 
-    print('\nCreate training patches\n')
+    print('\nCreate patch for training...')
     p_path, l_path = tr.preprocess()
-    print('\nDone.\n')
+    print('Done.\n')
 
     # Training
     # net
@@ -247,8 +248,8 @@ if train_bool:
         file_dsc.write('--------------> {} fold-validation : DSC={}\n'.format(it, DICE/dice_cnt))
         file_dsc.write('--------------> {} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
 
-    file_dsc.write("=================>>>> mean DSC Result={}\n".format(DICE/dice_cnt))
-    file_dsc.write('=================>>>> min~max DSC={}~{}\n'.format(minDice, maxDice))
+    file_dsc.write("\n=================>>>> mean DSC Result={}\n".format(DICE/dice_cnt))
+    file_dsc.write('=================>>>> min~max DSC={}~{}\n\n'.format(minDice, maxDice))
 
 else:
     
@@ -263,32 +264,34 @@ else:
         test_p_path = root + data_name + '/test_VOL'
 
     im_path = glob(test_p_path + '/**')
-
+    rescale_ft = 2 # 1/2
     # model loading
     models_path = glob(model_path)
     model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
 
     if not os.path.isfile(model):
-        print(model+' -> model not exists')
+        print(model+' -> model not exists\n')
         model = model_path+'/miccai_{}.pkl'.format((len(models_path)-1)*100)
-
+    
     unet.load_state_dict(torch.load(model))
-    print('Model loading success.')
+    print('Model loading success.\n')
     for idx, im in enumerate(im_path):
 
         if not os.path.isfile(im):
             print(p+' -> not exists')
             continue
-
+        print(im + '-> try loading')
         volume = io.imread(im, plugin='simpleitk').astype(float)
-        output_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
-
+        print('Volume loading success\n')
+        output_prob = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
+        output_class = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
         DICE = 0.0
         dice_cnt = 0
+        strd = 4 # strides
         print('Patch prediction start...')
-        for z in range(volume_size[0]):
-            for y in range(volume_size[1]):
-                for x in range(volume_size[2]):
+        for z in range(0,volume_size[0],strd):
+            for y in range(0,volume_size[1],strd):
+                for x in range(0,volume_size[2],strd):
                     d1 = z-int(patch_size[0]/2)
                     d2 = z+int(patch_size[0]/2)
                     h1 = y-int(patch_size[1]/2)
@@ -307,47 +310,63 @@ else:
                     x_tensor = Variable(torch.from_numpy(x).float()).cuda()
 
                     output = unet.forward(x_tensor)
+                    output_arr = output.data.cpu().numpy()
+                    idx = output_arr[:,0]<output_arr[:,1]
+                    idx = idx.reshape([1, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                    idx = idx.astype(np.int64)
 
                     for m in range(n_mode):
                         if m==0:
-                            patch_mode = output[:,1].data.cpu().numpy()
+                            patch_prob = output_arr[:,1]
+                            patch_class = idx[:,0]
                         else:
-                            patch_mode += output[:,1].data.cpu().numpy()
+                            patch_prob += output_arr[:,1]
+                            patch_class += idx[:,0]
                     
-                    output_volume[d1:d2, h1:h2, w1:w2] = patch_mode
-        print('Done.')
+                    output_prob[d1:d2, h1:h2, w1:w2] += patch_prob.reshape([patch_size[0],patch_size[1],patch_size[2]])
+                    output_class[d1:d2, h1:h2, w1:w2] += patch_class.reshape([patch_size[0],patch_size[1],patch_size[2]])
+            print(' -----> {}/{} success'.format(z,volume_size[0]))
+        print('Done.\n')
         # save
-        thsd = 3 # max = n_mode+9 
-        output_volume = output_volume > thsd
-        output_volume = output_volume.astype(np.int64)
+        thsd = pow(patch_size[0]/strd, 3)/5 # max = 4
+        print('threshold = {}\n'.format(thsd)) 
+        output_class = output_class > thsd
+        output_class = output_class.astype(np.int64)
 
         path = root + dataname + '/test_PNG/{}'.format(idx)
         if not os.path.exists(path):
             os.makedirs(path)
-        
-        for i, slice in enumerate(output_volume):
-            io.imsave(path+'/{}_predict.PNG'.format(i), slice)
-  
+
+        output_prob[output_prob<0] = 0
+        # zero mean norm
+        output_prob = (output_prob - np.mean(output_prob)) / np.std(output_prob)
+        if np.max(output_prob) !=0:
+            output_prob /= np.max(output_prob)
+        if np.min(output_prob) <= -1:
+            output_prob /= abs(np.min(output_prob))
+        i = 0
+        for slice_prob, slice_class in zip(output_prob,output_class):
+            io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
+            io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class)
+            i += 1
+        print('Volume saved')
         # DSC
         label_path = glob(path + '/*label*')
         origin_path = glob(path + '/*origin*')
         label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
         origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
-        c = 0
-        for l,o in zip(label_path, origin_path):
-            label_volume[c] = io.imread(l, plugin='simpleitk').astype(float)
-            origin_volume[c] = io.imread(o, plugin='simpleitk').astype(float)
-            c += 1
+        for idx, slice in enumerate(label_path):
+            label_volume[idx] = io.imread(slice, plugin='simpleitk').astype(float)
 
-        print('predict sum={}'.format(output_volume.sum()))
+        print('predict sum={}'.format(output_class.sum()))
         print('gt sum={}'.format(label_volume.sum()))
 
-        denominator = output_volume.sum() + label_volume.sum()
+        denominator = output_class.sum() + label_volume.sum()
         print('denominator={}'.format(denominator))
-        output_volume[output_volume==0] = -1
+        output_class[output_class==0] = -1
 
-        intersection = label_volume==output_volume
+        intersection = label_volume==output_class
         intersection = intersection.astype(np.int64)
         dice = intersection.sum()*2 / denominator
 
