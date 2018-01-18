@@ -21,6 +21,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 from model import UnetGenerator_3d, loss_function
+import time
 
 import argparse
 
@@ -289,6 +290,7 @@ else:
         dice_cnt = 0
         strd = 4 # strides
         print('Patch prediction start...')
+        tic = time.time()
         for z in range(0,volume_size[0],strd):
             for y in range(0,volume_size[1],strd):
                 for x in range(0,volume_size[2],strd):
@@ -326,7 +328,7 @@ else:
                     output_prob[d1:d2, h1:h2, w1:w2] += patch_prob.reshape([patch_size[0],patch_size[1],patch_size[2]])
                     output_class[d1:d2, h1:h2, w1:w2] += patch_class.reshape([patch_size[0],patch_size[1],patch_size[2]])
             print(' -----> {}/{} success'.format(z,volume_size[0]))
-        print('Done.\n')
+        print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
         # save
         thsd = pow(patch_size[0]/strd, 3)/5 # max = 4
         print('threshold = {}\n'.format(thsd)) 
