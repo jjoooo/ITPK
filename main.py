@@ -281,11 +281,11 @@ else:
     rescale_ft = 2 # 1/2
     # model loading
     models_path = glob(model_path)
-    model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
+    model = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
 
     if not os.path.isfile(model):
         print(model+' -> model not exists\n')
-        model = model_path+'/miccai_{}.pkl'.format((len(models_path)-1)*1000)
+        model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
     
     unet.load_state_dict(torch.load(model))
     print('Model loading success.\n')
