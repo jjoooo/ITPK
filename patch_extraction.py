@@ -164,6 +164,7 @@ class Patches3d(object):
         return patches, labels, center_labels
 
     def test_make_patch(self, volume, p_path, patient_idx):
+        print('idx {} : Make patches...'.format(patient_idx))
         patches = []
         idx,d,h,w = volume.shape
         cnt = 0
@@ -192,6 +193,6 @@ class Patches3d(object):
                     sitk.WriteImage(sitk.GetImageFromArray(patch_mode), temp)
                     sitk.WriteImage(sitk.GetImageFromArray(volume[-1,d1:d2, h1:h2, w1:w2]), temp_l)
                     cnt += 1
-
+        print('idx {} : Done.'.format(patient_idx))
 if __name__ == '__main__':
     pass

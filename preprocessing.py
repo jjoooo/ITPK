@@ -212,17 +212,13 @@ class Preprocessing(object):
     def test_preprocess(self):
 
         patch_n = 0
-        test_path = self.root_path+'/patch/patch_{}_{}_test'.format(self.patch_size[0], self.num_patch)
+        test_path = self.root_path+'/test_VOL'
+        if not os.path.exists(test_path):
+            os.makedirs(test_path)
+ 
         for idx, patient in enumerate(self.patients):
-            p_path = test_path+'/{}'.format(idx)
-
-            if not os.path.exists(p_path):
-                os.makedirs(p_path)
-
+            if len(glob(test_path+'/{}.mha'.format(idx))) > 0: continue
             pn = self.volume_size[0]-int(self.patch_size[0]/2)
-            if len(glob(p_path+'/**')) >= pn*pn*pn:
-                print('         -> already test patches exist')
-                continue
 
             flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
             t1 = [scan for scan in t1s if scan not in t1_n4]
@@ -256,9 +252,11 @@ class Preprocessing(object):
 
             normed_slices = self.norm_slices(idx, self.training_bool)
 
+            
+            sitk.WriteImage(sitk.GetImageFromArray(normed_slices), test_path+'/{}.mha'.format(idx))
             # run patch_extraction
-            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
-            pl.test_make_patch(normed_slices, p_path, idx)
+            # pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
+            # pl.test_make_patch(normed_slices, p_path, idx)
             print('------------------------------idx = {}'.format(idx))
         return test_path
 

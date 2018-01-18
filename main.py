@@ -60,7 +60,7 @@ batch_size = args.batch_size
 n_patch = args.n_patch
 lr = args.learning_rate
 fold_val = args.fold_val
-train_bool = False
+train_bool = True
 
 print('----------------------------------------------')
 print('n_gpu = {}'.format(args.n_gpu))
@@ -211,7 +211,7 @@ if train_bool:
                   
                     idx = output_arr[:,0]<output_arr[:,1]
                     idx = idx.reshape([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
-                 
+                    idx = idx.astype(np.int64)
                     print('predict sum={}'.format(idx.sum()))
                     print('gt sum={}'.format(y.sum()))
                     
@@ -226,16 +226,15 @@ if train_bool:
 
                     print('tp={}'.format(intersection.sum()))
  
-                    if y.sum() != 0:
-                        print('{} dice={}'.format(dice_cnt, dice))
-                        file_dsc.write('{} dice={}\n'.format(dice_cnt, dice))
-                        DICE += dice
+                    print('{} dice={}'.format(dice_cnt, dice))
+                    file_dsc.write('{} dice={}\n'.format(dice_cnt, dice))
+                    DICE += dice
                     
-                        if minDice > dice:
-                            minDice = dice
-                        if maxDice < dice:
-                            maxDice = dice
-                        dice_cnt += 1
+                    if minDice > dice:
+                        minDice = dice
+                    if maxDice < dice:
+                        maxDice = dice
+                    dice_cnt += 1
                 else:
                     cnt += 1
             patch_n += 1
@@ -258,7 +257,7 @@ else:
         test_p_path = test.test_preprocess()
         print('\nDone.\n')
     else:
-        test_p_path = root + data_name + '/patch/patch_{}_{}_test'.format(args.patch_size, args.n_patch)
+        test_p_path = root + data_name + '/test_VOL'
 
     im_path = glob(test_p_path + '/**')
 
@@ -274,6 +273,11 @@ else:
 
     for idx, im in enumerate(im_path):
 
+        if not os.path.isfile(im):
+            print(p+' -> not exists')
+            continue
+
+        volume = io.imread(p, plugin='simpleitk').astype(float)
         output_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
         DICE = 0.0
@@ -290,18 +294,14 @@ else:
 
                     if d1 < 0 or d2 > d or h1 < 0 or h2 > h or w1 < 0 or w2 > w:
                         continue
-                        
-                    p = im+'/{}_{}_{}.mha'.format(dd,hh,ww)
-                    if not os.path.isfile(p):
-                        print(p+' -> not exists')
-                        continue
-
+        
                     x = np.zeros([1, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
-                    patch = io.imread(p, plugin='simpleitk').astype(float)
+                    patch = volume[d1:d2, h1:h2, w1:w2]
+
                     for m in range(n_mode-1):
-                        d1 = m*args.patch_size
-                        d2 = (m+1)*args.patch_size
-                        x[0,m] = patch[d1:d2]
+                        dd1 = m*args.patch_size
+                        dd2 = (m+1)*args.patch_size
+                        x[0,m] = patch[dd1:dd2]
 
                     x_tensor = Variable(torch.from_numpy(x).float()).cuda()
 
