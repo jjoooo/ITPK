@@ -26,10 +26,11 @@ import time
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_gpu",type=int,default=8)
+parser.add_argument("--gpu_idx",type=int,default=0)
+parser.add_argument("--n_epoch",type=int,default=100)
 parser.add_argument("--patch_size",type=int,default=32)
 parser.add_argument("--n_patch",type=int,default=10000)
-parser.add_argument("--batch_size",type=int,default=32)
+parser.add_argument("--batch_size",type=int,default=1024)
 parser.add_argument("--root",type=str,default='/mnt/disk2/data/MRI_Data/')
 parser.add_argument("--data_name",type=str,default='MICCAI2008')
 parser.add_argument("--n_class",type=int,default=2)
@@ -48,6 +49,7 @@ try:
 except NameError:
     xrange = range
 
+n_epoch = args.n_epoch
 root = args.root
 data_name = args.data_name #'MICCAI2008' #BRATS -> 'BRATS2015'
 n_channel = 1
@@ -66,9 +68,14 @@ fold_val = args.fold_val
 train_bool = True
 if args.train_bl == 0:
     train_bool = False
+n4b = False
+use_gpu = '{},{}'.format(args.gpu_idx, args.gpu_idx+1)
+os.environ["CUDA_VISIBLE_DEVICES"]=use_gpu
+
 
 print('----------------------------------------------')
-print('n_gpu = {}'.format(args.n_gpu))
+print('gpu_idx = {}'.format(args.gpu_idx))
+print('use_gpu = '+use_gpu)
 print('volume size = {}'.format(volume_size))
 print('patch size = {}'.format(patch_size))
 print('batch size = {}'.format(batch_size))
@@ -88,15 +95,15 @@ if not os.path.exists('./loss'):
 if not os.path.exists('./dsc'):
     os.makedirs('./dsc')
 
-file_loss = open('./loss/lr{}_ps{}_np{}_{}fold_mse_loss'.format(lr,patch_size[0],n_patch,fold_val), 'w')
-file_dsc = open('./dsc/lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
-test_file_dsc = open('./dsc/TEST_lr{}_ps{}_np{}_{}fold_DSC'.format(lr,patch_size[0],n_patch,fold_val), 'w')
+file_loss = open('./loss/lr{}_bs{}_ps{}_np{}_{}fold_mse_loss'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
+file_dsc = open('./dsc/lr{}_bs{}_ps{}_np{}_{}fold_DSC'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
+test_file_dsc = open('./dsc/TEST_lr{}_bs{}_ps{}_np{}_{}fold_DSC'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
 
-model_path = './model/model_ps{}_bs{}_np{}_lr{}_{}fold'.format(args.patch_size, batch_size, n_patch, lr, fold_val)
+model_path = './model/model_ps{}_np{}_lr{}_{}fold'.format(args.patch_size, n_patch, lr, fold_val)
 
 if train_bool:
     # Preprocessing
-    tr = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
+    tr = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, n4b, True, data_name, root, train_bool)
 
     print('\nCreate patch for training...')
     p_path, l_path = tr.preprocess()
@@ -125,8 +132,10 @@ if train_bool:
                 print(md_path+' -> also this model not exists\n')
                 output_cnt = 1
             else:
+                print('pretrained model loading: '+md_path)
                 unet.load_state_dict(torch.load(md_path))
         else:
+            print('pretrained model loading: '+md_path)
             unet.load_state_dict(torch.load(md_path))
 
     all_num_patches = len(glob(p_path+'/**'))
@@ -138,143 +147,147 @@ if train_bool:
     minDice = 1.0
     maxDice = 0.0
 
-    for it in range(fold_val):
-        cnt = 1
+    for ep in range(n_epoch):
+        for it in range(fold_val):
+            cnt = 1
 
-        val_idx_start = it * val_num
-        val_idx_end = val_idx_start + val_num
-        print('{} fold validation patch idx : {} - {}'.format(it, val_idx_start, val_idx_end))
-        patch_n = 0
-        
-        while True:
-            if patch_n >= all_num_patches:  
-                print('Training done')
-                break
-            # if len(glob(model_path+'/**'))>0: break
-            if patch_n < val_idx_start or patch_n >= val_idx_end:
-            #if patch_n >= val_idx_start and patch_n < val_idx_end:
-                m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
-                m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
-                if not m_p_path or not m_l_path: 
-                    print('ERR file not exists')
-                    continue
-
-                x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
-                y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
-
-                p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
-                l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
-
-                for m in range(n_mode-1):
-                    d1 = m*args.patch_size
-                    d2 = (m+1)*args.patch_size
-                    x[cnt-1,m] = p[d1:d2]
-                y[cnt-1,0] = l
-
-                if cnt % batch_size == 0:
-                    x = Variable(torch.from_numpy(x).float()).cuda()
-                    y = Variable(torch.from_numpy(y).long()).cuda()
-                    output = unet.forward(x)
-                    loss = loss_function(output,y)
-                    file_loss.write('batch {} \t: loss {}\n'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
-                    print('batch {} \t-------> loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
-
-                    loss.backward()
-                    optimizer.step()
-                    output_cnt += 1
-                    cnt = 1
-
-                cnt += 1
-                
-                if output_cnt % 1000 ==0:
-                    torch.save(unet.state_dict(),model_path+'/miccai_{}.pkl'.format(output_cnt))
-
-            patch_n += 1
-
-        cnt = 1
-        patch_n = val_idx_start 
-        
-        DICE = 0.0
-        dice_cnt = 0
-        while True:
-            if patch_n >= all_num_patches: 
-                print('Validation done. patch_n={}, all_num_patches={}'.format(patch_n,all_num_patches))
-                break
-
-            if patch_n >= val_idx_start and patch_n < val_idx_end:
-                m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
-                m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
-                if not m_p_path or not m_l_path: 
-                    print('ERR file not exists')
+            val_idx_start = it * val_num
+            val_idx_end = val_idx_start + val_num
+            print('{} fold validation patch idx : {} - {}'.format(it, val_idx_start, val_idx_end))
+            patch_n = 0
+            
+            while True:
+                if patch_n >= all_num_patches:  
+                    print('Training done.\n')
                     break
+                # if len(glob(model_path+'/**'))>0: break
+                if patch_n < val_idx_start or patch_n >= val_idx_end:
+                #if patch_n >= val_idx_start and patch_n < val_idx_end:
+                    m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
+                    m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
+                    if not m_p_path or not m_l_path: 
+                        print('ERR file not exists')
+                        continue
 
-                x = np.zeros([batch_size, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
-                y = np.zeros([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                    x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
+                    y = np.zeros([batch_size, n_channel, args.patch_size, args.patch_size, args.patch_size])
 
-                p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
-                l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
+                    p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
+                    l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
 
-                for m in range(n_mode-1):
-                    d1 = m*args.patch_size
-                    d2 = (m+1)*args.patch_size
-                    x[cnt-1,m] = p[d1:d2]
-                y[cnt-1,0] = l
+                    for m in range(n_mode-1):
+                        d1 = m*args.patch_size
+                        d2 = (m+1)*args.patch_size
+                        x[cnt-1,m] = p[d1:d2]
+                    y[cnt-1,0] = l
 
-                if cnt % batch_size == 0:
-                    x_tensor = Variable(torch.from_numpy(x).float()).cuda()
-                    y_tensor = Variable(torch.from_numpy(y).long()).cuda()
+                    if cnt % batch_size == 0:
+                        x = Variable(torch.from_numpy(x).float()).cuda()
+                        y = Variable(torch.from_numpy(y).long()).cuda()
+                        output = unet.forward(x)
+                        loss = loss_function(output,y)
+                        file_loss.write('batch {} \t: loss {}\n'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
+                        print('batch {} \t-------> loss {}'.format(output_cnt-1, loss.data.cpu().numpy()[0]))
 
-                    output = unet.forward(x_tensor)
-                    output_arr = output.data.cpu().numpy()
+                        loss.backward()
+                        optimizer.step()
+                        output_cnt += 1
+                        cnt = 1
 
-                    output_cnt += 1
-                    cnt = 1
-
-                    # one hot encoding
-                  
-                    idx = output_arr[:,0]<output_arr[:,1]
-                    idx = idx.reshape([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
-                    idx = idx.astype(np.int64)
-                    print('predict sum={}'.format(idx.sum()))
-                    print('gt sum={}'.format(y.sum()))
-                    
-                    # DSC
-                    denominator = idx.sum() + y.sum() 
-                    print('denominator={}'.format(denominator))   
-                    idx[idx==0] = -1
-                    
-                    intersection = y==idx
-                    intersection = intersection.astype(np.int64)
-                    dice = intersection.sum()*2 / denominator
-
-                    print('tp={}'.format(intersection.sum()))
- 
-                    print('{} dice={}'.format(dice_cnt, dice))
-                    file_dsc.write('{} dice={}\n'.format(dice_cnt, dice))
-                    DICE += dice
-                    
-                    if minDice > dice:
-                        minDice = dice
-                    if maxDice < dice:
-                        maxDice = dice
-                    dice_cnt += 1
-                else:
                     cnt += 1
-            patch_n += 1
-        
-        print('{} fold-validation : mean DSC={}'.format(it, DICE/dice_cnt))
-        print('{} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
-        file_dsc.write('--------------> {} fold-validation : DSC={}\n'.format(it, DICE/dice_cnt))
-        file_dsc.write('--------------> {} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
+                    
+                    if output_cnt % 1000 ==0:
+                        torch.save(unet.state_dict(),model_path+'/miccai_{}.pkl'.format(output_cnt))
 
-    file_dsc.write("\n=================>>>> mean DSC Result={}\n".format(DICE/dice_cnt))
-    file_dsc.write('=================>>>> min~max DSC={}~{}\n\n'.format(minDice, maxDice))
+                patch_n += 1
+
+            cnt = 1
+            patch_n = val_idx_start 
+            
+            DICE = 0.0
+            dice_cnt = 0
+            print('Validationn start...')
+            while True:
+                if patch_n >= all_num_patches: 
+                    print('Validation done.\n')
+                    break
+                
+                if patch_n >= val_idx_start and patch_n < val_idx_end:
+                    m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
+                    m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
+                    if not m_p_path or not m_l_path: 
+                        print('ERR file not exists')
+                        break
+
+                    x = np.zeros([batch_size, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
+                    y = np.zeros([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+
+                    p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
+                    l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
+                    if l.sum() ==0: 
+                        continue
+                    for m in range(n_mode-1):
+                        d1 = m*args.patch_size
+                        d2 = (m+1)*args.patch_size
+                        x[cnt-1,m] = p[d1:d2]
+                    y[cnt-1,0] = l
+                    print "|",
+                    if cnt % batch_size == 0:
+              
+                        x_tensor = Variable(torch.from_numpy(x).float(), volatile=True).cuda()
+                        y_tensor = Variable(torch.from_numpy(y).long()).cuda()
+
+                        output = unet.forward(x_tensor)
+                        output_arr = output.data.cpu().numpy()
+
+                        output_cnt += 1
+                        cnt = 1
+
+                        # one hot encoding
+                    
+                        idx = output_arr[:,0]<output_arr[:,1]
+                        idx = idx.reshape([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                        idx = idx.astype(np.int64)
+                        print('\n - predict sum={}'.format(idx.sum()))
+                        print(' - gt sum={}'.format(y.sum()))
+                        
+                        # DSC
+                        denominator = idx.sum() + y.sum() 
+                        print(' - denominator={}'.format(denominator))   
+                        idx[idx==0] = -1
+                        
+                        intersection = y==idx
+                        intersection = intersection.astype(np.int64)
+                        dice = intersection.sum()*2 / denominator
+
+                        print(' - tp={}'.format(intersection.sum()))
+    
+                        print(' - {} dice={}'.format(dice_cnt, dice))
+                        file_dsc.write(' - {} dice={}\n'.format(dice_cnt, dice))
+                        DICE += dice
+                        
+                        if minDice > dice:
+                            minDice = dice
+                        if maxDice < dice:
+                            maxDice = dice
+                        dice_cnt += 1
+                    else:
+                        cnt += 1
+                patch_n += 1
+            
+            print('{} fold-validation : mean DSC={}'.format(it, DICE/dice_cnt))
+            print('{} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
+            file_dsc.write('--------------> {} fold-validation : DSC={}\n'.format(it, DICE/dice_cnt))
+            file_dsc.write('--------------> {} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
+
+        file_dsc.write("\n=================>>>> mean DSC Result={}\n".format(DICE/dice_cnt))
+        file_dsc.write('=================>>>> min~max DSC={}~{}\n\n'.format(minDice, maxDice))
 
 else:
     
     # test
     if True:
-        test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, False, False, data_name, root, train_bool)
+        test = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, n4b, True, data_name, root, train_bool)
         unet = nn.DataParallel(UnetGenerator_3d(in_dim=n_mode-1,out_dim=out_dim,num_filter=16)).cuda()
         print('\nCreate volume for test...')
         test_p_path = test.test_preprocess()
@@ -310,6 +323,7 @@ else:
         dice_cnt = 0
         strd = 8 # strides
         print('Patch prediction start...')
+
         tic = time.time()
         for z in range(strd,volume_size[0],strd):
             for y in range(strd,volume_size[1],strd):
@@ -329,43 +343,43 @@ else:
                     for m in range(n_mode-1):
                         x[0,m] = volume[m, d1:d2, h1:h2, w1:w2]
 
-                    x_tensor = Variable(torch.from_numpy(x).float()).cuda()
+                    x_tensor = Variable(torch.from_numpy(x).float(), volatile=True).cuda()
 
                     output = unet.forward(x_tensor)
                     output_arr = output.data.cpu().numpy()
-                    idx = output_arr[:,0]<output_arr[:,1]
-                    idx = idx.reshape([1, n_channel, patch_size[0], patch_size[1], patch_size[2]])
-                    idx = idx.astype(np.int64)
 
-                    for m in range(n_mode):
-                        if m==0:
-                            patch_prob = output_arr[:,1]
-                            patch_class = idx[:,0]
-                        else:
-                            patch_prob += output_arr[:,1]
-                            patch_class += idx[:,0]
+                    tp = output_arr[0,0]<output_arr[0,1]
+                    tp = tp.astype(np.int64)
                     
-                    output_prob[d1:d2, h1:h2, w1:w2] += patch_prob.reshape([patch_size[0],patch_size[1],patch_size[2]])
-                    output_class[d1:d2, h1:h2, w1:w2] += patch_class.reshape([patch_size[0],patch_size[1],patch_size[2]])
+                    output_prob[d1:d2, h1:h2, w1:w2] += output_arr[0,1].reshape([patch_size[0], patch_size[1], patch_size[2]])
+                    output_class[d1:d2, h1:h2, w1:w2] += tp[0,0]
+                    
             print(' -----> {}/{} success'.format(z,volume_size[0]))
         print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
         # save
-        thsd = pow(patch_size[0]/strd, 3)/4 
+        thsd = 5# pow(patch_size[0]/strd, 3)/4 
+
         print('threshold = {}\n'.format(thsd)) 
+        print('min={}, max={}'.format(np.min(output_class),np.max(output_class)))
+        print('min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
         output_class = output_class > thsd
         output_class = output_class.astype(np.int64)
 
-        path = root + data_name + '/test_PNG/{}'.format(idx)
+        path = root + data_name + '/test_PNG/{}_{}_{}_{}'.format(idx,patch_size[0],n_patch,n_epoch)
         if not os.path.exists(path):
             os.makedirs(path)
-
-        output_prob[output_prob<0] = 0
+        print(np.unique(output_class))
+        print(output_prob.sum())
         # zero mean norm
+        b, t = np.percentile(output_prob, (1,99))
+        output_prob = np.clip(output_prob, b, t)
         output_prob = (output_prob - np.mean(output_prob)) / np.std(output_prob)
+        
         if np.max(output_prob) !=0:
             output_prob /= np.max(output_prob)
         if np.min(output_prob) <= -1:
             output_prob /= abs(np.min(output_prob))
+        print(output_prob.sum())
         i = 0
         for slice_prob, slice_class in zip(output_prob,output_class):
             io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
@@ -376,9 +390,9 @@ else:
         label_path = glob(path + '/*label*')
         label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
-        for idx, slice in enumerate(label_path):
-            label_volume[idx] = io.imread(slice, plugin='simpleitk').astype(float)
-
+        for k, slice in enumerate(label_path):
+            label_volume[k] = io.imread(slice, plugin='simpleitk').astype(float)
+        label_volume[label_volume>0] = 1
         print('predict sum={}'.format(output_class.sum()))
         print('gt sum={}'.format(label_volume.sum()))
 

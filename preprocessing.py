@@ -163,8 +163,10 @@ class Preprocessing(object):
                 io.imsave(self.path[:-3]+'Labels/{}_{}L.png'.format(label_idx, slice_idx), slices[slice_idx])
 
     def preprocess(self):
-
-        p_path = self.root_path+'/patch/patch_{}_{}'.format(self.patch_size[0], self.num_patch)
+        use_n4 = ''
+        if self.n4bias:
+            use_n4 = '_n4'
+        p_path = self.root_path+'/patch/patch_{}_{}'.format(self.patch_size[0], self.num_patch)+use_n4
         l_path = self.root_path+'/label/label_{}_{}'.format(self.patch_size[0], self.num_patch)
         if not os.path.exists(p_path):
             os.makedirs(p_path)
