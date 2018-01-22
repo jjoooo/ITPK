@@ -218,9 +218,9 @@ if train_bool:
                     if not m_p_path or not m_l_path: 
                         print('ERR file not exists')
                         break
-                    val_batch = 32
-                    x = np.zeros([val_batch, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
-                    y = np.zeros([val_batch, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                    
+                    x = np.zeros([batch_size, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
+                    y = np.zeros([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
 
                     p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
                     l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
@@ -232,8 +232,8 @@ if train_bool:
                         d2 = (m+1)*args.patch_size
                         x[cnt-1,m] = p[d1:d2]
                     y[cnt-1,0] = l
-                    print "#",
-                    if cnt % val_batch == 0:
+                    
+                    if cnt % batch_size == 0:
               
                         x_tensor = Variable(torch.from_numpy(x).float(), volatile=True).cuda()
                         y_tensor = Variable(torch.from_numpy(y).long()).cuda()
@@ -247,7 +247,7 @@ if train_bool:
                         # one hot encoding
                     
                         idx = output_arr[:,0]<output_arr[:,1]
-                        idx = idx.reshape([val_batch, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                        idx = idx.reshape([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
                         idx = idx.astype(np.int64)
                         print('\n - predict sum={}'.format(idx.sum()))
                         print(' - gt sum={}'.format(y.sum()))
@@ -264,7 +264,7 @@ if train_bool:
                         print(' - tp={}'.format(intersection.sum()))
     
                         print(' - {} dice={}'.format(dice_cnt, dice))
-                        file_dsc.write(' - {} dice={}\n'.format(dice_cnt, dice))
+                        file_dsc.write(' - {} dice={}\n--------------------------------------\n'.format(dice_cnt, dice))
                         DICE += dice
                         
                         if minDice > dice:
@@ -348,6 +348,7 @@ else:
 
                     output = unet.forward(x_tensor)
                     output_arr = output.data.cpu().numpy()
+                    output_arr = output_arr.astype(np.float)
 
                     tp = output_arr[0,0]<output_arr[0,1]
                     tp = tp.astype(np.int64)
@@ -369,22 +370,26 @@ else:
         path = root + data_name + '/test_PNG/{}_{}_{}_{}'.format(idx,patch_size[0],n_patch,n_epoch)
         if not os.path.exists(path):
             os.makedirs(path)
-        print(np.unique(output_class))
-        print(output_prob.sum())
-        # zero mean norm
+        print('output_class = {}'.format(np.unique(output_class)))
+
+        # remove outlier
         b, t = np.percentile(output_prob, (1,99))
-        output_prob = np.clip(output_prob, b, t)
+        output_prob = np.clip(output_prob, 0, t)
+
+        # zero mean norm
         output_prob = (output_prob - np.mean(output_prob)) / np.std(output_prob)
         
         if np.max(output_prob) !=0:
             output_prob /= np.max(output_prob)
         if np.min(output_prob) <= -1:
             output_prob /= abs(np.min(output_prob))
-        print(output_prob.sum())
+        output_prob[output_prob<0.5] = 0.0
+        print('output_prob sum = {}'.format(output_prob.sum()))
+
         i = 0
         for slice_prob, slice_class in zip(output_prob,output_class):
             io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
-            io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class*10000)
+            io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class*255)
             i += 1
         print('Volume saved.')
         # DSC
@@ -392,8 +397,10 @@ else:
         label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
         for k, slice in enumerate(label_path):
-            label_volume[k] = io.imread(slice, plugin='simpleitk').astype(float)
+            label_volume[k] = io.imread(slice, plugin='simpleitk').astype(np.int64)
+        print('label_volume = {}'.format(np.unique(label_volume)))
         label_volume[label_volume>0] = 1
+        print('label_volume = {}'.format(np.unique(label_volume)))
         print('predict sum={}'.format(output_class.sum()))
         print('gt sum={}'.format(label_volume.sum()))
 
