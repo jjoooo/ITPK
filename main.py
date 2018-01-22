@@ -74,7 +74,6 @@ os.environ["CUDA_VISIBLE_DEVICES"]=use_gpu
 
 
 print('----------------------------------------------')
-print('gpu_idx = {}'.format(args.gpu_idx))
 print('use_gpu = '+use_gpu)
 print('volume size = {}'.format(volume_size))
 print('patch size = {}'.format(patch_size))
@@ -121,13 +120,13 @@ if train_bool:
         os.makedirs(model_path)
     models_path = glob(model_path+'/**')
     if models_path:
-        md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
-        output_cnt = len(models_path)*1000+1
+        md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
+        output_cnt = len(models_path)*100+1
 
         if not os.path.isfile(md_path):
             print(md_path+' -> model not exists\n')
-            md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
-            output_cnt = len(models_path)*100+1
+            md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
+            output_cnt = len(models_path)*1000+1
             if not os.path.isfile(md_path):
                 print(md_path+' -> also this model not exists\n')
                 output_cnt = 1
@@ -167,6 +166,7 @@ if train_bool:
                     m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
                     if not m_p_path or not m_l_path: 
                         print('ERR file not exists')
+                        patch_n += 1
                         continue
 
                     x = np.zeros([batch_size, n_mode-1, args.patch_size, args.patch_size, args.patch_size])
@@ -180,7 +180,7 @@ if train_bool:
                         d2 = (m+1)*args.patch_size
                         x[cnt-1,m] = p[d1:d2]
                     y[cnt-1,0] = l
-
+                    
                     if cnt % batch_size == 0:
                         x = Variable(torch.from_numpy(x).float()).cuda()
                         y = Variable(torch.from_numpy(y).long()).cuda()
@@ -196,7 +196,7 @@ if train_bool:
 
                     cnt += 1
                     
-                    if output_cnt % 1000 ==0:
+                    if output_cnt % 100 ==0:
                         torch.save(unet.state_dict(),model_path+'/miccai_{}.pkl'.format(output_cnt))
 
                 patch_n += 1
@@ -218,21 +218,22 @@ if train_bool:
                     if not m_p_path or not m_l_path: 
                         print('ERR file not exists')
                         break
-
-                    x = np.zeros([batch_size, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
-                    y = np.zeros([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                    val_batch = 32
+                    x = np.zeros([val_batch, n_mode-1, patch_size[0], patch_size[1], patch_size[2]])
+                    y = np.zeros([val_batch, n_channel, patch_size[0], patch_size[1], patch_size[2]])
 
                     p = io.imread(m_p_path[0], plugin='simpleitk').astype(float)
                     l = io.imread(m_l_path[0], plugin='simpleitk').astype(float) 
-                    if l.sum() ==0: 
+                    if l.sum() ==0:
+                        patch_n += 1 
                         continue
                     for m in range(n_mode-1):
                         d1 = m*args.patch_size
                         d2 = (m+1)*args.patch_size
                         x[cnt-1,m] = p[d1:d2]
                     y[cnt-1,0] = l
-                    print "|",
-                    if cnt % batch_size == 0:
+                    print "#",
+                    if cnt % val_batch == 0:
               
                         x_tensor = Variable(torch.from_numpy(x).float(), volatile=True).cuda()
                         y_tensor = Variable(torch.from_numpy(y).long()).cuda()
@@ -246,7 +247,7 @@ if train_bool:
                         # one hot encoding
                     
                         idx = output_arr[:,0]<output_arr[:,1]
-                        idx = idx.reshape([batch_size, n_channel, patch_size[0], patch_size[1], patch_size[2]])
+                        idx = idx.reshape([val_batch, n_channel, patch_size[0], patch_size[1], patch_size[2]])
                         idx = idx.astype(np.int64)
                         print('\n - predict sum={}'.format(idx.sum()))
                         print(' - gt sum={}'.format(y.sum()))
@@ -275,7 +276,7 @@ if train_bool:
                         cnt += 1
                 patch_n += 1
             
-            print('{} fold-validation : mean DSC={}'.format(it, DICE/dice_cnt))
+            print('\n{} fold-validation : mean DSC={}'.format(it, DICE/dice_cnt))
             print('{} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
             file_dsc.write('--------------> {} fold-validation : DSC={}\n'.format(it, DICE/dice_cnt))
             file_dsc.write('--------------> {} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
@@ -299,11 +300,11 @@ else:
    
     # model loading
     models_path = glob(model_path+'/**')
-    model = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
+    model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
 
     if not os.path.isfile(model):
         print(model+' -> model not exists\n')
-        model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
+        model = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
         if not os.path.isfile(model):
             print(model+' -> also this model not exists\n')
 
@@ -321,7 +322,7 @@ else:
         output_class = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
         DICE = 0.0
         dice_cnt = 0
-        strd = 8 # strides
+        strd = 4 # strides
         print('Patch prediction start...')
 
         tic = time.time()
@@ -357,7 +358,7 @@ else:
             print(' -----> {}/{} success'.format(z,volume_size[0]))
         print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
         # save
-        thsd = 5# pow(patch_size[0]/strd, 3)/4 
+        thsd = pow(patch_size[0]/strd, 3)/4 
 
         print('threshold = {}\n'.format(thsd)) 
         print('min={}, max={}'.format(np.min(output_class),np.max(output_class)))
@@ -383,7 +384,7 @@ else:
         i = 0
         for slice_prob, slice_class in zip(output_prob,output_class):
             io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
-            io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class)
+            io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class*10000)
             i += 1
         print('Volume saved.')
         # DSC
