@@ -309,13 +309,13 @@ else:
             print(model+' -> also this model not exists\n')
 
     unet.load_state_dict(torch.load(model))
-    print('Model loading success.\n')
+    print(model+' -> model loading success.\n')
     for idx, im in enumerate(im_path):
 
         if not os.path.isfile(im):
             print(p+' -> not exists')
             continue
-        print(im + '-> try loading')
+        print(im + ' -> try loading')
         volume = io.imread(im, plugin='simpleitk').astype(float)
         print('Volume loading success\n')
         output_prob = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
