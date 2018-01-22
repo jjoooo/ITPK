@@ -127,7 +127,7 @@ if train_bool:
         e = (output_cnt-1) / ((n_patch*(fold_val-1)/fold_val)/batch_size)
         n_epoch = n_epoch - int(e)
         if n_epoch < 1: n_epoch = 1
-        print('e = {}, n_epoch = {}'.format(int(e),n_epoch))
+        print('pretrain epoch = {} -> edit n_epoch\nn_epoch = {}'.format(int(e),n_epoch))
         print('pretrained model loading: '+md_path)
         unet.load_state_dict(torch.load(md_path))
 
