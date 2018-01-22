@@ -209,7 +209,7 @@ if train_bool:
             print('Validationn start...')
             while True:
                 if patch_n >= all_num_patches: 
-                    print('Validation done.\n')
+                    print('\nValidation done.\n')
                     break
                 
                 if patch_n >= val_idx_start and patch_n < val_idx_end:
