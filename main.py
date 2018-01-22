@@ -122,20 +122,14 @@ if train_bool:
     if models_path:
         md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
         output_cnt = len(models_path)*100+1
-
-        if not os.path.isfile(md_path):
-            print(md_path+' -> model not exists\n')
-            md_path = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
-            output_cnt = len(models_path)*1000+1
-            if not os.path.isfile(md_path):
-                print(md_path+' -> also this model not exists\n')
-                output_cnt = 1
-            else:
-                print('pretrained model loading: '+md_path)
-                unet.load_state_dict(torch.load(md_path))
-        else:
-            print('pretrained model loading: '+md_path)
-            unet.load_state_dict(torch.load(md_path))
+        
+        # pretrain epoch
+        e = (output_cnt-1) / ((n_patch*(fold_val-1)/fold_val)/batch_size)
+        n_epoch = n_epoch - int(e)
+        if n_epoch < 1: n_epoch = 1
+        print('e = {}, n_epoch = {}'.format(int(e),n_epoch))
+        print('pretrained model loading: '+md_path)
+        unet.load_state_dict(torch.load(md_path))
 
     all_num_patches = len(glob(p_path+'/**'))
     tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
@@ -301,13 +295,11 @@ else:
     # model loading
     models_path = glob(model_path+'/**')
     model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
-
     if not os.path.isfile(model):
         print(model+' -> model not exists\n')
         model = model_path+'/miccai_{}.pkl'.format(len(models_path)*1000)
         if not os.path.isfile(model):
             print(model+' -> also this model not exists\n')
-
     unet.load_state_dict(torch.load(model))
     print(model+' -> model loading success.\n')
     for idx, im in enumerate(im_path):
@@ -383,7 +375,7 @@ else:
             output_prob /= np.max(output_prob)
         if np.min(output_prob) <= -1:
             output_prob /= abs(np.min(output_prob))
-        output_prob[output_prob<0.5] = 0.0
+        output_prob[output_prob<0] = -1
         print('output_prob sum = {}'.format(output_prob.sum()))
 
         i = 0
