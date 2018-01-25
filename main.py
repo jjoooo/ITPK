@@ -4,8 +4,9 @@ from glob import glob
 import random
 
 # image data
-from skimage import io
-
+from skimage import io, color, img_as_float
+from skimage.exposure import adjust_gamma
+from sklearn.preprocessing import minmax_scale
 import SimpleITK as sitk
 
 from preprocessing import Preprocessing
@@ -20,7 +21,7 @@ import torchvision.utils as v_utils
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 from torch.autograd import Variable
-from model import UnetGenerator_3d, loss_function
+from unet3d import UnetGenerator_3d, loss_function
 import time
 
 import argparse
@@ -30,8 +31,8 @@ parser.add_argument("--gpu_idx",type=int,default=0)
 parser.add_argument("--n_epoch",type=int,default=100)
 parser.add_argument("--patch_size",type=int,default=32)
 parser.add_argument("--n_patch",type=int,default=10000)
-parser.add_argument("--batch_size",type=int,default=1024)
-parser.add_argument("--root",type=str,default='/mnt/disk2/data/MRI_Data/')
+parser.add_argument("--batch_size",type=int,default=256)
+parser.add_argument("--root",type=str,default='/Users/jui/Downloads/Data/')
 parser.add_argument("--data_name",type=str,default='MICCAI2008')
 parser.add_argument("--n_class",type=int,default=2)
 parser.add_argument("--n_mode",type=int,default=4)
@@ -39,6 +40,7 @@ parser.add_argument("--volume_size",type=int,default=512)
 parser.add_argument("--learning_rate",type=float,default=0.0002)
 parser.add_argument("--fold_val",type=int,default=5)
 parser.add_argument("--train_bl",type=int,default=1)
+parser.add_argument("--tr_dim",type=int,default=2)
 args = parser.parse_args()
 
 import warnings
@@ -60,7 +62,14 @@ if data_name == 'BRATS2015':
     volume_size = (155,args.volume_size,args.volume_size)
 else:
     volume_size = (args.volume_size,args.volume_size,args.volume_size)
-patch_size = (args.patch_size, args.patch_size, args.patch_size)
+
+dim = args.tr_dim
+
+if dim == 2:
+    patch_size = (args.patch_size, args.patch_size)
+else:
+    patch_size = (args.patch_size, args.patch_size, args.patch_size)
+
 batch_size = args.batch_size
 n_patch = args.n_patch
 lr = args.learning_rate
@@ -76,6 +85,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]=use_gpu
 print('----------------------------------------------')
 print('use_gpu = '+use_gpu)
 print('volume size = {}'.format(volume_size))
+print('patch dimension = {}'.format(dim))
 print('patch size = {}'.format(patch_size))
 print('batch size = {}'.format(batch_size))
 print('n_channel = {}'.format(n_channel))
@@ -96,16 +106,17 @@ if not os.path.exists('./dsc'):
 
 file_loss = open('./loss/lr{}_bs{}_ps{}_np{}_{}fold_mse_loss'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
 file_dsc = open('./dsc/lr{}_bs{}_ps{}_np{}_{}fold_DSC'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
-test_file_dsc = open('./dsc/TEST_lr{}_bs{}_ps{}_np{}_{}fold_DSC'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
+if train_bool==0:
+    test_file_dsc = open('./dsc/TEST_lr{}_bs{}_ps{}_np{}_{}fold_DSC'.format(lr,batch_size,patch_size[0],n_patch,fold_val), 'w')
 
 model_path = './model/model_ps{}_np{}_lr{}_{}fold'.format(args.patch_size, n_patch, lr, fold_val)
 
 if train_bool:
     # Preprocessing
-    tr = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, n4b, True, data_name, root, train_bool)
+    tr = Preprocessing(n_mode, n_class, n_patch, volume_size, patch_size, n4b, True, data_name, root, train_bool, dim)
 
     print('\nCreate patch for training...')
-    p_path, l_path = tr.preprocess()
+    p_path, l_path, all_len = tr.preprocess()
     print('Done.\n')
 
     # Training
@@ -131,10 +142,10 @@ if train_bool:
         print('pretrained model loading: '+md_path)
         unet.load_state_dict(torch.load(md_path))
 
-    all_num_patches = len(glob(p_path+'/**'))
-    tr_num = int(all_num_patches*(float(fold_val-1)/float(fold_val)))
-    val_num = all_num_patches - tr_num
-    print('{} fold-validation : tr={}, test={}, in {}'.format(fold_val, tr_num, all_num_patches-tr_num, all_num_patches))
+    n_patient = len(glob(p_path+'/**'))
+    tr_num = int(n_patient*(float(fold_val-1)/float(fold_val)))
+    val_num = n_patient - tr_num
+    print('{} fold-validation : tr={}, test={}, in {}'.format(fold_val, tr_num, n_patient-tr_num, n_patient))
 
     DSC = 0.0
     minDice = 1.0
@@ -150,14 +161,29 @@ if train_bool:
             patch_n = 0
             
             while True:
-                if patch_n >= all_num_patches:  
+                if patch_n > n_patch:  
                     print('Training done.\n')
                     break
-                # if len(glob(model_path+'/**'))>0: break
-                if patch_n < val_idx_start or patch_n >= val_idx_end:
-                #if patch_n >= val_idx_start and patch_n < val_idx_end:
-                    m_p_path = glob(p_path+'/{}.mha'.format(patch_n))
-                    m_l_path = glob(l_path+'/{}_l.mha'.format(patch_n))
+
+                while True:             
+                    patient_idx = np.random.randint(n_patient)
+                    if patient_idx >= val_idx_start and  patient_idx < val_idx_end:
+                        continue
+                    else: break
+
+                patches = glob(p_path+'/{}/**'.format(patient_idx))
+                labels = glob(l_path+'/{}/**'.format(patient_idx))
+                
+                odd = True
+                if odd:
+                    patch_idx = np.random.randint(int((len(patches)-1)/2))*2
+                    odd = False
+                else:
+                    patch_idx = np.random.randint(int((len(patches)-1)/2))*2+1
+                    odd = True
+                    
+                    m_p_path = glob(patches[patch_idx])
+                    m_l_path = glob(labels[patch_idx])
                     if not m_p_path or not m_l_path: 
                         print('ERR file not exists')
                         patch_n += 1
@@ -272,7 +298,7 @@ if train_bool:
             
             print('\n{} fold-validation : mean DSC={}'.format(it, DICE/dice_cnt))
             print('{} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
-            file_dsc.write('--------------> {} fold-validation : DSC={}\n'.format(it, DICE/dice_cnt))
+            file_dsc.write('\n--------------> {} fold-validation : mean DSC={}\n'.format(it, DICE/dice_cnt))
             file_dsc.write('--------------> {} fold-validation : min~max DSC={}~{}\n'.format(it, minDice, maxDice))
 
         file_dsc.write("\n=================>>>> mean DSC Result={}\n".format(DICE/dice_cnt))
@@ -291,7 +317,7 @@ else:
         test_p_path = root + data_name + '/test_VOL'
 
     im_path = glob(test_p_path + '/**')
-   
+    im_path.sort()
     # model loading
     models_path = glob(model_path+'/**')
     model = model_path+'/miccai_{}.pkl'.format(len(models_path)*100)
@@ -303,7 +329,7 @@ else:
     unet.load_state_dict(torch.load(model))
     print(model+' -> model loading success.\n')
     for idx, im in enumerate(im_path):
-
+        
         if not os.path.isfile(im):
             print(p+' -> not exists')
             continue
@@ -314,7 +340,7 @@ else:
         output_class = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
         DICE = 0.0
         dice_cnt = 0
-        strd = 4 # strides
+        strd = 8 # strides
         print('Patch prediction start...')
 
         tic = time.time()
@@ -345,54 +371,61 @@ else:
                     tp = output_arr[0,0]<output_arr[0,1]
                     tp = tp.astype(np.int64)
                     
-                    output_prob[d1:d2, h1:h2, w1:w2] += output_arr[0,1].reshape([patch_size[0], patch_size[1], patch_size[2]])
+                    output_prob[d1:d2, h1:h2, w1:w2] += output_arr[0,1]
                     output_class[d1:d2, h1:h2, w1:w2] += tp[0,0]
                     
             print(' -----> {}/{} success'.format(z,volume_size[0]))
         print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
         # save
-        thsd = pow(patch_size[0]/strd, 3)/4 
+        thsd = 1 #pow(patch_size[0]/strd, 3)/4 
 
         print('threshold = {}\n'.format(thsd)) 
         print('min={}, max={}'.format(np.min(output_class),np.max(output_class)))
         print('min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
-        output_class = output_class > thsd
+        # output_class = output_class > thsd
         output_class = output_class.astype(np.int64)
 
-        path = root + data_name + '/test_PNG/{}_{}_{}_{}'.format(idx,patch_size[0],n_patch,n_epoch)
+        path = root + data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx,patch_size[0],n_patch,n_epoch)
         if not os.path.exists(path):
             os.makedirs(path)
         print('output_class = {}'.format(np.unique(output_class)))
-
+        
         # remove outlier
         b, t = np.percentile(output_prob, (1,99))
         output_prob = np.clip(output_prob, 0, t)
-
-        # zero mean norm
-        output_prob = (output_prob - np.mean(output_prob)) / np.std(output_prob)
-        
-        if np.max(output_prob) !=0:
-            output_prob /= np.max(output_prob)
-        if np.min(output_prob) <= -1:
-            output_prob /= abs(np.min(output_prob))
-        output_prob[output_prob<0] = -1
+        # min-max scale
+        output_prob = minmax_scale(output_prob)
         print('output_prob sum = {}'.format(output_prob.sum()))
 
+        label_path = glob(root+data_name+'/test_label_PNG/{}/**'.format(idx))
+        origin_path = glob(root+data_name+'/test_origin_PNG/{}/**'.format(idx))
+
+        label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
+        origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
+
+        k=0
+        for la, ori in zip(label_path, origin_path):
+            label_volume[k] = io.imread(la, plugin='simpleitk').astype(int)
+            origin_volume[k] = io.imread(ori, plugin='simpleitk').astype(int)
+            k += 1
+        label_volume[label_volume>0] = 1
+
+        vol = img_as_float(origin_volume)
+        vol = adjust_gamma(color.gray2rgb(vol), 0.5)
+        print(vol.shape) 
+        rgb_class = color.gray2rgb(output_prob)
+        rgb_class = adjust_gamma(rgb_class, 0.5)
+        red_add = [0.5, 0.1, 0.1]
+        vol[output_prob>0.2] += red_add
+
         i = 0
-        for slice_prob, slice_class in zip(output_prob,output_class):
+        for slice_prob, slice_class, slice_rgb in zip(output_prob,output_class,vol):
             io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
             io.imsave(path+'/{}_predict_class.PNG'.format(i), slice_class*255)
+            io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_rgb)
             i += 1
         print('Volume saved.')
-        # DSC
-        label_path = glob(path + '/*label*')
-        label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
 
-        for k, slice in enumerate(label_path):
-            label_volume[k] = io.imread(slice, plugin='simpleitk').astype(np.int64)
-        print('label_volume = {}'.format(np.unique(label_volume)))
-        label_volume[label_volume>0] = 1
-        print('label_volume = {}'.format(np.unique(label_volume)))
         print('predict sum={}'.format(output_class.sum()))
         print('gt sum={}'.format(label_volume.sum()))
 

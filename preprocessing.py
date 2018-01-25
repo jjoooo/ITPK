@@ -7,7 +7,7 @@ import random
 from skimage import io
 import SimpleITK as sitk
 
-from patch_extraction import Patches3d
+from patch_extraction import MakePatches
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -19,7 +19,7 @@ except NameError:
 
 class Preprocessing(object):
 
-    def __init__(self, n_mode, n_class, n_patch, volume_size, patch_size, n4, n4_apply, data_name, root, train_bl):
+    def __init__(self, n_mode, n_class, n_patch, volume_size, patch_size, n4, n4_apply, data_name, root, train_bl, dim):
         
         self.num_mode = n_mode #4 #BRATS -> 5 # include ground truth
         self.num_class = n_class #2 #BRATS -> 5
@@ -31,6 +31,7 @@ class Preprocessing(object):
         self.training_bool = train_bl
         self.data_name = data_name #'MICCAI2008' #BRATS -> 'BRATS2015'
         self.root_path = root + data_name
+        self.dim = dim
 
         self.path = ''
         self.ext = ''
@@ -77,11 +78,14 @@ class Preprocessing(object):
                 if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
             if not train_bl:
-                path = self.root_path+'/test_PNG/{}'.format(idx)
-                if not os.path.exists(path):
-                    os.makedirs(path)
-                io.imsave(path+'/{}_label.PNG'.format(slice_ix), normed_slices[-1][slice_ix])
-                io.imsave(path+'/{}_origin.PNG'.format(slice_ix), normed_slices[0][slice_ix])
+                l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
+                o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
+                if not os.path.exists(l_path):
+                    os.makedirs(l_path)
+                if not os.path.exists(o_path):
+                    os.makedirs(o_path)
+                io.imsave(l_path+'/{}_label.PNG'.format(slice_ix), normed_slices[-1][slice_ix])
+                io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[0][slice_ix])
                 # Test        
                 # if slice_ix==76:
                 #     io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
@@ -166,18 +170,19 @@ class Preprocessing(object):
         use_n4 = ''
         if self.n4bias:
             use_n4 = '_n4'
-        p_path = self.root_path+'/patch/patch_{}_{}'.format(self.patch_size[0], self.num_patch)+use_n4
-        l_path = self.root_path+'/label/label_{}_{}'.format(self.patch_size[0], self.num_patch)
+        p_path = self.root_path+'/patch/patch_{}'.format(self.patch_size[0])+use_n4
+        l_path = self.root_path+'/label/label_{}'.format(self.patch_size[0])
         if not os.path.exists(p_path):
             os.makedirs(p_path)
         if not os.path.exists(l_path):
             os.makedirs(l_path)
       
-        if len(glob(p_path+'/**')) >= self.num_patch*0.7:
+        if len(glob(p_path+'/**')) == 20:
             print('         -> already training patches exist')
-            return p_path, l_path
+            return p_path, l_path, 0
             
         patch_n = 0
+        len_patch = 0
         for idx, patient in enumerate(self.patients):
 
             if not self.volume2slices(patient):
@@ -185,21 +190,23 @@ class Preprocessing(object):
             
             normed_slices = self.norm_slices(idx, self.training_bool)
             
+            for i in range(self.num_class):
+                if not os.path.exists(p_path+'/{}'.format(i)):
+                    os.makedirs(p_path+'/{}'.format(i))
+                if not os.path.exists(l_path+'/{}'.format(i)):
+                    os.makedirs(l_path+'/{}'.format(i))
+            
             # run patch_extraction
-            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch/len(self.patients))
-            pair_p, pair_l, self.center_labels = pl.make_patch(normed_slices, self.center_labels)
-            print('-----------------------idx = {} & num of patches = {}'.format(idx, len(pair_p)))
-            patient_n = 0
-            for p,l in zip(pair_p, pair_l):
-                temp = p_path+'/{}.mha'.format(patch_n)
-                sitk.WriteImage(sitk.GetImageFromArray(p), temp)
-
-                temp = l_path+'/{}_l.mha'.format(patch_n)
-                sitk.WriteImage(sitk.GetImageFromArray(l), temp)
-
-                patch_n += 1
-     
-        print('Complete.')
+            pl = MakePatches(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch/len(self.patients), self.dim)
+            if self.dim==2:
+                l_p = pl.create_2Dpatches(normed_slices, p_path, l_path)
+                len_patch += l_p
+            else:
+                l_p = pl.create_3Dpatches(normed_slices, p_path, l_path)
+                len_patch += l_p
+            print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
+            
+        print('\n\nnum of all patch = {}'.format(len_patch))
 
         ''' 
         for c in range(num_class):
@@ -209,7 +216,7 @@ class Preprocessing(object):
                 fn = '/Users/jui/Downloads/Data/' + data_name + '_{}_{}.PNG'.format(m,c)
                 io.imsave(fn, patches[m][p][7])
         '''
-        return p_path, l_path
+        return p_path, l_path, len_patch
 
     def test_preprocess(self):
 
@@ -218,6 +225,16 @@ class Preprocessing(object):
         if not os.path.exists(test_path):
             os.makedirs(test_path)
  
+        use_n4 = ''
+        if self.n4bias:
+            use_n4 = '_n4'
+        p_path = self.root_path+'/test_patch/patch_{}'.format(self.patch_size[0])+use_n4
+        l_path = self.root_path+'/test_label/label_{}'.format(self.patch_size[0])
+        if not os.path.exists(p_path):
+            os.makedirs(p_path)
+        if not os.path.exists(l_path):
+            os.makedirs(l_path)
+
         for idx, patient in enumerate(self.patients):
             if len(glob(test_path+'/{}.mha'.format(idx))) > 0: continue
             pn = self.volume_size[0]-int(self.patch_size[0]/2)
@@ -257,8 +274,8 @@ class Preprocessing(object):
             
             sitk.WriteImage(sitk.GetImageFromArray(normed_slices), test_path+'/{}.mha'.format(idx))
             # run patch_extraction
-            # pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
-            # pl.test_make_patch(normed_slices, p_path, idx)
+            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
+            pl.test_make_patch(normed_slices, p_path, idx)
             print('----------------idx = {} volume saved'.format(idx))
         return test_path
 
