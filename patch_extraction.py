@@ -32,13 +32,13 @@ class MakePatches(object):
         self.num_patch = num_patch
         self.dim = dim
         
-    def create_3Dpatches(self, volume, p_path, l_path):
+    def create_3Dpatches(self, volume, p_path, l_path, idx):
 
         volume_l = volume[-1]
         np.delete(volume, -1, 0)
 
         c_l = []
-        min_c = 9999999
+        min_c = self.num_patch
         for c in range(self.num_class):
             c_l.append(np.argwhere(volume_l == c))
             if c==0: min_c = len(c_l[c])
@@ -47,7 +47,7 @@ class MakePatches(object):
                     min_c  = len(c_l[c])
             print('class {} - {}'.format(c,len(c_l[c])))
 
-        self.num_patch = min_c*2
+        self.num_patch = int(min_c*2)
         print('num patch = {}'.format(self.num_patch))
     
         # random patch each class
@@ -101,12 +101,11 @@ class MakePatches(object):
                         else:
                             patch_mode = np.concatenate((patch_mode, patch))
 
-                    temp = p_path+'/{}.mha'.format(cnt)
+                    temp = p_path+'/{}_{}.mha'.format(idx, cnt)
                     sitk.WriteImage(sitk.GetImageFromArray(patch_mode), temp)
 
-                    temp = l_path+'/{}_l.mha'.format(cnt)
+                    temp = l_path+'/{}_{}_l.mha'.format(idx, cnt)
                     sitk.WriteImage(sitk.GetImageFromArray(label), temp)
-                    cnt += 1
                     cnt += 1
                     class_c_bl = False
                     
@@ -118,13 +117,11 @@ class MakePatches(object):
         np.delete(volume, -1, 0)
 
         c_l = []
-        min_c = 9999999
+        min_c = self.num_patch/2
         for c in range(self.num_class):
             c_l.append(np.argwhere(volume_l == c))
-            if c==0: min_c = len(c_l[c])
-            else:
-                if  min_c  > len(c_l[c]):
-                    min_c  = len(c_l[c])
+            if  min_c  > len(c_l[c]):
+                min_c  = len(c_l[c])
             print('class {} - {}'.format(c,len(c_l[c])))
 
         self.num_patch = min_c*2
@@ -184,7 +181,7 @@ class MakePatches(object):
                     io.imsave(temp, patches)
 
                     temp = l_path+'/{}/{}_l.PNG'.format(c,cnt)
-                    io.imsave(temp, label)
+                    #io.imsave(temp, label)
                     cnt += 1
                     class_c_bl = False
 
@@ -263,27 +260,31 @@ class MakePatches(object):
         for z in range(d):
             for y in range(h):
                 for x in range(w): 
-                    d1 = z-int(self.d/2)
-                    d2 = z+int(self.d/2)
                     h1 = y-int(self.h/2)
                     h2 = y+int(self.h/2)
                     w1 = x-int(self.w/2)
                     w2 = x+int(self.w/2)
 
-                    if d1 < 0 or d2 > d or h1 < 0 or h2 > h or w1 < 0 or w2 > w:
+                    if h1 < 0 or h2 > h or w1 < 0 or w2 > w:
                         continue
                     
                     for m in range(idx-1):
-                        patch = volume[m, d1:d2, h1:h2, w1:w2]
                         if m==0:
-                            patch_mode = patch
+                            patches = volume[m, z, h1:h2, w1:w2]
                         else:
-                            patch_mode = np.concatenate((patch_mode, patch))
+                            patches = np.concatenate((patches, volume[m, z, h1:h2, w1:w2]))
 
-                    temp = p_path+'/{}_{}_{}.mha'.format(z, y, x)
-                    temp_l = p_path+'/{}_{}_{}_l.mha'.format(z, y, x)
-                    sitk.WriteImage(sitk.GetImageFromArray(patch_mode), temp)
-                    sitk.WriteImage(sitk.GetImageFromArray(volume[-1,d1:d2, h1:h2, w1:w2]), temp_l)
+                    if np.max(patches) != 0: # set values < 1
+                        patches /= np.max(patches)
+                    if np.min(patches) <= -1: # set values > -1
+                        patches /= abs(np.min(patches))
+                    
+                    temp = p_path+'/{}_{}_{}.PNG'.format(z, y, x)
+                    io.imsave(temp, patches)
+
+                    #temp = l_path+'/{}/{}_l.PNG'.format(c,cnt)
+                    #io.imsave(temp, label)
+                    #sitk.WriteImage(sitk.GetImageFromArray(patch_mode), temp)
                     cnt += 1
         print('idx {} : Done.'.format(patient_idx))
 if __name__ == '__main__':

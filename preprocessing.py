@@ -176,36 +176,49 @@ class Preprocessing(object):
             os.makedirs(p_path)
         if not os.path.exists(l_path):
             os.makedirs(l_path)
-      
-        if len(glob(p_path+'/**')) == 20:
-            print('         -> already training patches exist')
+
+        if len(glob(p_path+'/**')) > 1:
             return p_path, l_path, 0
-            
+        
         patch_n = 0
         len_patch = 0
+        n_val = 2
+        val_cnt = 0
         for idx, patient in enumerate(self.patients):
 
             if not self.volume2slices(patient):
                 continue
             
             normed_slices = self.norm_slices(idx, self.training_bool)
+            if val_cnt < n_val:
+                val_str = '/test'
+                print(patient)
+            else:
+                val_str = '/train'
             
             for i in range(self.num_class):
-                if not os.path.exists(p_path+'/{}'.format(i)):
-                    os.makedirs(p_path+'/{}'.format(i))
-                if not os.path.exists(l_path+'/{}'.format(i)):
-                    os.makedirs(l_path+'/{}'.format(i))
-            
+                if not os.path.exists(p_path+val_str):
+                    os.makedirs(p_path+val_str)
+                if not os.path.exists(l_path+val_str):
+                    os.makedirs(l_path+val_str)
+
+                if not os.path.exists(p_path+val_str+'/{}'.format(i)):
+                    os.makedirs(p_path+val_str+'/{}'.format(i))
+                if not os.path.exists(l_path+val_str+'/{}'.format(i)):
+                    os.makedirs(l_path+val_str+'/{}'.format(i))
+
             # run patch_extraction
             pl = MakePatches(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch/len(self.patients), self.dim)
+
             if self.dim==2:
-                l_p = pl.create_2Dpatches(normed_slices, p_path, l_path)
+                l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, l_path+val_str)
                 len_patch += l_p
             else:
-                l_p = pl.create_3Dpatches(normed_slices, p_path, l_path)
+                l_p = pl.create_3Dpatches(normed_slices, p_path+val_str, l_path+val_str)
                 len_patch += l_p
-            print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
             
+            val_cnt += 1
+            print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
         print('\n\nnum of all patch = {}'.format(len_patch))
 
         ''' 
@@ -236,9 +249,9 @@ class Preprocessing(object):
             os.makedirs(l_path)
 
         for idx, patient in enumerate(self.patients):
-            if len(glob(test_path+'/{}.mha'.format(idx))) > 0: continue
+            #if len(glob(test_path+'/{}.mha'.format(idx))) > 0: continue
             pn = self.volume_size[0]-int(self.patch_size[0]/2)
-
+            
             flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
             t1 = [scan for scan in t1s if scan not in t1_n4]
 
@@ -270,12 +283,12 @@ class Preprocessing(object):
                 self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
 
             normed_slices = self.norm_slices(idx, self.training_bool)
-
             
             sitk.WriteImage(sitk.GetImageFromArray(normed_slices), test_path+'/{}.mha'.format(idx))
+        
             # run patch_extraction
-            pl = Patches3d(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch)
-            pl.test_make_patch(normed_slices, p_path, idx)
+            #pl = MakePatches(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch, self.dim)
+            #pl.test_make_patch(normed_slices, p_path, idx)
             print('----------------idx = {} volume saved'.format(idx))
         return test_path
 
