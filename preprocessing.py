@@ -50,7 +50,7 @@ class Preprocessing(object):
             self.ext = '.nhdr'
 
         self.patients = glob(self.path + '/**')
-
+        self.patients.sort()
         self.center_labels = []
 
         self.slices_by_mode = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
@@ -77,6 +77,8 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                 if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+                #if slice_ix==251:
+                    #io.imsave(self.root_path+'/miccai2008_{}_{}_N4.PNG'.format(mode_ix,slice_ix),normed_slices[mode_ix][slice_ix])
             if not train_bl:
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
@@ -87,8 +89,6 @@ class Preprocessing(object):
                 io.imsave(l_path+'/{}_label.PNG'.format(slice_ix), normed_slices[-1][slice_ix])
                 io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[0][slice_ix])
                 # Test        
-                # if slice_ix==76:
-                #     io.imsave(self.root_path+'/miccai2008_{}_N4.PNG'.format(mode_ix), normed_slices[mode_ix][slice_ix])
 
         print('         -> Done.')
         return normed_slices
@@ -249,7 +249,8 @@ class Preprocessing(object):
             os.makedirs(l_path)
 
         for idx, patient in enumerate(self.patients):
-            #if len(glob(test_path+'/{}.mha'.format(idx))) > 0: continue
+            if idx!=4: continue
+            if len(glob(test_path+'/{}.mha'.format(idx))) > 0: continue
             pn = self.volume_size[0]-int(self.patch_size[0]/2)
             
             flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
