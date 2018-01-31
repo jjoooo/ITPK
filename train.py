@@ -1,0 +1,60 @@
+import os
+
+import torch
+import torch.nn as nn
+from torch.autograd import Variable
+
+
+# GPU training
+def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_cnt, model_path):
+
+    # writing loss
+    if not os.path.exists('./loss'):
+        os.makedirs('./loss')
+    file_loss = open('./loss/lr{}_ps{}_bce_loss'.format(args.learning_rate, args.patch_size), 'w')
+
+    print('\nTraining start...')
+    resnet_s = models[0]
+    resnet_b = models[1]
+    classifier = models[2]
+
+    for img,_ in tr_batch:
+
+        optimizer.zero_grad()
+        
+        mid = int(args.patch_size/2)
+        x1 = Variable(img[:,:,:mid]).cuda()
+        x2 = Variable(img[:,:,mid:]).cuda()
+
+        out_s = resnet_s.forward(x1)  
+        out_b = resnet_b.forward(x2)
+
+        concat_out = torch.cat([out_s,out_b],dim=1)
+
+        out = classifier.forward(concat_out)
+
+        target = Variable(_).float().cuda()
+        target = target.view(args.batch_size,-1)
+
+        loss = loss_fn(out, target)
+
+        file_loss.write('batch {} \t: loss {}\n'.format(cnt-1, loss.data.cpu().numpy()[0]))
+        print('batch {} \t-------> loss {}'.format(cnt-1, loss.data.cpu().numpy()[0]))
+
+        loss.backward()
+        
+        optimizer.step()
+
+        if cnt % 100 ==0:
+            torch.save(resnet_s.state_dict(),model_path+'/miccai_{}_{}.pkl'.format(0, model_cnt))
+            torch.save(resnet_b.state_dict(),model_path+'/miccai_{}_{}.pkl'.format(1, model_cnt))
+            torch.save(classifier.state_dict(),model_path+'/miccai_{}_{}.pkl'.format(2, model_cnt))
+            model_cnt += 1
+        cnt += 1
+    
+    models = [resnet_s, resnet_b, classifier]
+    print('Train done.')
+    return models, cnt, model_cnt
+
+def training_cpu(self, cnt, model_cnt, model_path):
+    pass

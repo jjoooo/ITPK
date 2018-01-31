@@ -1,27 +1,20 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torchvision.models as models
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
-import matplotlib.pyplot as plt
-import numpy as np
+
+resnet = models.resnet50(pretrained=False)
 
 class Resnet(nn.Module):
     def __init__(self, num_mode):
         super(Resnet,self).__init__()
-        resnet = models.resnet50(pretrained=False)
+        
         self.layer0 = nn.Conv2d(num_mode,64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        self.layer1 = nn.Sequential(*list(resnet.children())[1:-2])        
+        self.layer1 = nn.Sequential(*list(resnet.children())[1:-2])
         
     def forward(self,x):
         out = self.layer0(x)
-        #print('in resnet out1 = {}'.format(np.mean(out.data.cpu().numpy())))
         out = self.layer1(out)
-        #print('in resnet out2 = {}'.format(np.mean(out.data.cpu().numpy())))
-        #out = out.view(batch_size,-1)
+
         return out
 
 class Classifier(nn.Module):
