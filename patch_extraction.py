@@ -96,59 +96,58 @@ class MakePatches(object):
         print('num patch = {}'.format(self.num_patch))
 
         # random patch each class
-        cnt = 0
-        l_n = 0
-        finish_bl = True
-        while cnt < self.num_patch and finish_bl:
-            
-            for c in range(self.num_class):
-                class_bl = True
-                while class_bl:
-                    l_idx = random.choice(c_l[c])
-                    if int(self.num_patch/2) == len(c_l[c]) or not self.train_bl:
-                        l_idx = c_l[c][l_n]
-                        l_n += 1
-                        if l_n >= len(c_l[c]):
-                            finish_bl = False
-                            class_bl = False
+        for c in range(self.num_class-1,-1,-1):
+            n_patch = 0
+            cnt = 0
+            while n_patch < self.num_patch:
+                
+                l_idx = random.choice(c_l[c])
+
+                if int(self.num_patch/2) == len(c_l[c]) or not self.train_bl:
+                    l_idx = c_l[c][cnt]
+                    cnt += 1
+
+                    if cnt >= len(c_l[c]):
+                        self.num_patch = n_patch
+                        break
                     
-                    h1 = l_idx[1]-int(self.h/2)
-                    h2 = l_idx[1]+int(self.h/2)
-                    w1 = l_idx[2]-int(self.w/2)
-                    w2 = l_idx[2]+int(self.w/2)
-                    if h1 < 0 or h2 > self.volume_size[1] or w1 < 0 or w2 > self.volume_size[2]:
+                h1 = l_idx[1]-int(self.h/2)
+                h2 = l_idx[1]+int(self.h/2)
+                w1 = l_idx[2]-int(self.w/2)
+                w2 = l_idx[2]+int(self.w/2)
+                if h1 < 0 or h2 > self.volume_size[1] or w1 < 0 or w2 > self.volume_size[2]:
+                    continue
+
+                label = volume_l[l_idx[0], h1:h2, w1:w2]
+
+                if self.train_bl:
+                    # Label filtering
+                    if not self._labels_filtering(label, c):
                         continue
 
-                    label = volume_l[l_idx[0], h1:h2, w1:w2]
-
-                    if self.train_bl:
-                        # Label filtering
-                        if not self._labels_filtering(label, c):
-                            continue
-
-                        bool_p = True
-                        for m in range(self.num_mode-1):
-                            patch = volume[m, l_idx[0], h1:h2, w1:w2]
-                            # Patch filtering
-                            if not self._patch_filtering(patch,c):
-                                bool_p = False
-                                break
-                        if not bool_p:
-                            continue 
-                    
+                    bool_p = True
                     for m in range(self.num_mode-1):
-                        if m==0:
-                            patches = volume[m, l_idx[0], h1:h2, w1:w2]
-                        else:
-                            patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
+                        patch = volume[m, l_idx[0], h1:h2, w1:w2]
+                        # Patch filtering
+                        if not self._patch_filtering(patch,c):
+                            bool_p = False
+                            break
+                    if not bool_p:
+                        continue 
+                
+                for m in range(self.num_mode-1):
+                    if m==0:
+                        patches = volume[m, l_idx[0], h1:h2, w1:w2]
+                    else:
+                        patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
 
-                    temp = p_path+'/{}/{}_{}_{}_{}.PNG'.format(c,idx,l_idx[0],l_idx[1],l_idx[2])
-                    io.imsave(temp, patches)
+                temp = p_path+'/{}/{}_{}_{}_{}.PNG'.format(c,idx,l_idx[0],l_idx[1],l_idx[2])
+                io.imsave(temp, patches)
 
-                    cnt += 1
-                    class_bl = False
+                n_patch += 1
 
-        return cnt
+
+        return self.num_patch*2
 
     '''
     def create_3Dpatches(self, volume, p_path, l_path, idx):
