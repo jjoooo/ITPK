@@ -105,7 +105,7 @@ class MakePatches(object):
                 class_bl = True
                 while class_bl:
                     l_idx = random.choice(c_l[c])
-                    if self.num_patch == len(c_l[c]) or self.train_bl:
+                    if self.num_patch == len(c_l[c])*2 or not self.train_bl:
                         l_idx = c_l[c][l_n]
                         l_n += 1
                         if l_n >= len(c_l[c]):
@@ -141,7 +141,7 @@ class MakePatches(object):
                         else:
                             patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
 
-                    temp = p_path+'/{}/{}_{}_{}.PNG'.format(c,l_idx[0],l_idx[1],l_idx[2])
+                    temp = p_path+'/{}/{}_{}_{}.JPEG'.format(c,l_idx[0],l_idx[1],l_idx[2])
                     io.imsave(temp, patches)
 
                     cnt += 1
