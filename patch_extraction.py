@@ -107,7 +107,7 @@ class MakePatches(object):
                     l_idx = c_l[c][cnt]
                     cnt += 1
 
-                    if cnt >= len(c_l[c]):
+                    if cnt > len(c_l[c]):
                         self.num_patch = n_patch
                         break
                     
