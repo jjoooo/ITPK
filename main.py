@@ -73,33 +73,31 @@ print('----------------------------------------------')
 # Init models
 models, model_idx, model_path = init_model(args)
 
-# Training mode
-if train_bl:
-    
-    # Preprocessing
-    tr = Preprocessing(args, n4b, n4b_apply)
-    p_path, l_path, all_len = tr.preprocess()
-    
-    # Init optimizer, loss
-    optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
-    loss_func = nn.BCEWithLogitsLoss()
+# Preprocessing
+pp = Preprocessing(args, n4b, n4b_apply)
+p_path, l_path, all_len = pp.preprocess()
 
-    # Create data batch
-    tr_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/train')
-    tr_batch = tr_bc.db_load()
+# Init optimizer, loss
+optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
+loss_func = nn.BCEWithLogitsLoss()
 
-    val_path = glob(p_path+'/validation/**')
-    val_batch = []
-    for path in val_path:
-        val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
-        val_batch.append(val_bc.db_load())
+# Create data batch
+tr_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/train')
+tr_batch = tr_bc.db_load()
 
-    cnt = 1
-    for ep in range(args.n_epoch):
-        
-        # Training
-        models, cnt, model_idx = training(args, tr_batch, models, loss_func, optimizer, cnt, model_idx, model_path)
-        
-        # Validation
-        for b in val_batch:
-            validation(args, b, models, ep)
+val_path = glob(p_path+'/validation/**')
+val_batch = []
+for path in val_path:
+    val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
+    val_batch.append(val_bc.db_load())
+
+# Training start...
+cnt = 1
+for ep in range(args.n_epoch):
+
+    # Training
+    models, cnt, model_idx = training(args, tr_batch, models, loss_func, optimizer, cnt, model_idx, model_path)
+
+    # Validation
+    for b in val_batch:
+        validation(args, b, models, ep)
