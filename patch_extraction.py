@@ -104,12 +104,13 @@ class MakePatches(object):
                 l_idx = random.choice(c_l[c])
 
                 if int(self.num_patch/2) == len(c_l[c]) or not self.train_bl:
+                    if cnt >= len(c_l[c]):
+                        if self.train_bl: 
+                            self.num_patch = n_patch
+                        break
+
                     l_idx = c_l[c][cnt]
                     cnt += 1
-
-                    if cnt > len(c_l[c]):
-                        self.num_patch = n_patch
-                        break
                     
                 h1 = l_idx[1]-int(self.h/2)
                 h2 = l_idx[1]+int(self.h/2)
