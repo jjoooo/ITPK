@@ -79,7 +79,7 @@ class MakePatches(object):
                 return False
         return True
 
-    def create_2Dpatches(self, volume, p_path):
+    def create_2Dpatches(self, volume, p_path, idx):
 
         volume_l = volume[-1]
         np.delete(volume, -1, 0)
@@ -105,11 +105,12 @@ class MakePatches(object):
                 class_bl = True
                 while class_bl:
                     l_idx = random.choice(c_l[c])
-                    if self.num_patch == len(c_l[c])*2 or not self.train_bl:
+                    if int(self.num_patch/2) == len(c_l[c]) or not self.train_bl:
                         l_idx = c_l[c][l_n]
                         l_n += 1
                         if l_n >= len(c_l[c]):
                             finish_bl = False
+                            class_bl = False
                     
                     h1 = l_idx[1]-int(self.h/2)
                     h2 = l_idx[1]+int(self.h/2)
@@ -141,7 +142,7 @@ class MakePatches(object):
                         else:
                             patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
 
-                    temp = p_path+'/{}/{}_{}_{}.JPEG'.format(c,l_idx[0],l_idx[1],l_idx[2])
+                    temp = p_path+'/{}/{}_{}_{}_{}.PNG'.format(c,idx,l_idx[0],l_idx[1],l_idx[2])
                     io.imsave(temp, patches)
 
                     cnt += 1
