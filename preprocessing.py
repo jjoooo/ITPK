@@ -167,18 +167,19 @@ class Preprocessing(object):
         if len(glob(p_path+'/**')) > 1:
             return p_path, 0
         
-        patch_n = 0
+        
         len_patch = 0
-        n_val = 2
-        val_cnt = 0
+        n_val = 1 
+        
         for idx, patient in enumerate(self.patients):
 
             if not self.volume2slices(patient):
                 continue
             
-            if val_cnt < n_val:
+            if idx > n_val and idx < n_val+2:
                 val_str = '/validation/{}'.format(idx)
                 self.train_bool = False
+                print(' --> test patch : '+ patient)
             else:
                 val_str = '/train'
                 self.train_bool = True
@@ -197,7 +198,6 @@ class Preprocessing(object):
             l_p = pl.create_2Dpatches(normed_slices, p_path+val_str)
             len_patch += l_p
             
-            val_cnt += 1
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
         print('\n\nnum of all patch = {}'.format(len_patch))
 
