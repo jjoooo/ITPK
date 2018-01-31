@@ -103,10 +103,3 @@ if train_bl:
         # Validation
         for b in val_batch:
             validation(args, b, models, ep)
-
-        ''' # have to edit batch func.
-        # Test
-        for b in val_batch:
-            testing(args, test_batch, models, idx)
-        '''
-        
