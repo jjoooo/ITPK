@@ -141,11 +141,6 @@ class MakePatches(object):
                         else:
                             patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
 
-                    if np.max(patches) != 0: # Set values < 1
-                        patches /= np.max(patches)
-                    if np.min(patches) <= -1: # Set values > -1
-                        patches /= abs(np.min(patches))
-
                     temp = p_path+'/{}/{}_{}_{}.PNG'.format(c,l_idx[0],l_idx[1],l_idx[2])
                     io.imsave(temp, patches)
 
