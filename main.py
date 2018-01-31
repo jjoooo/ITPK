@@ -77,7 +77,7 @@ models, model_idx, model_path = init_model(args)
 pp = Preprocessing(args, n4b, n4b_apply)
 p_path, l_path, all_len = pp.preprocess()
 
-# Init optimizer, loss
+# Init optimizer, loss function
 optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
 loss_func = nn.BCEWithLogitsLoss()
 
