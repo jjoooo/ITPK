@@ -19,7 +19,6 @@ from torch.autograd import Variable
 from data_loader import Create_Batch
 from train import training
 from validation import validation
-from test import testing
 from util import init_model 
 
 import time
@@ -40,8 +39,6 @@ parser.add_argument("--n_class",type=int,default=2)
 parser.add_argument("--n_mode",type=int,default=4)
 parser.add_argument("--volume_size",type=int,default=512)
 parser.add_argument("--learning_rate",type=float,default=0.0002)
-parser.add_argument("--fold_val",type=int,default=5)
-parser.add_argument("--train_bl",type=int,default=1)
 parser.add_argument("--tr_dim",type=int,default=2)
 args = parser.parse_args()
 
