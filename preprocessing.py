@@ -165,6 +165,7 @@ class Preprocessing(object):
             os.makedirs(p_path)
 
         if len(glob(p_path+'/**')) > 1:
+            print('Done.\n')
             return p_path, 0
         
         
