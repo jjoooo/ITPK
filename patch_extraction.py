@@ -83,6 +83,7 @@ class MakePatches(object):
         volume_l = volume[-1]
         np.delete(volume, -1, 0)
 
+    
         c_l = []
         min_c = self.args.n_patch/2
         for c in range(self.args.n_class):
@@ -91,10 +92,10 @@ class MakePatches(object):
                 min_c  = len(c_l[c])
             print('class {} - {}'.format(c,len(c_l[c])))
 
-        self.args.n_patch = min_c*2
+        n_patch = min_c*2
        
         
-        print('num patch = {}'.format(self.args.n_patch))
+        print('num patch = {}'.format(n_patch))
 
         # random patch each class
         
@@ -103,11 +104,11 @@ class MakePatches(object):
             n_patch = 0
             cnt = 0
             
-            while n_patch < self.args.n_patch/2:
+            while n_patch < n_patch:
                 
                 l_idx = random.choice(c_l[c])
 
-                if int(self.args.n_patch/2) == len(c_l[c]) or not self.train_bl:
+                if int(n_patch/2) == len(c_l[c]) or not self.train_bl:
                     if cnt >= len(c_l[c]):
                         if self.train_bl: 
                             self.args.n_patch = n_patch*2
@@ -152,7 +153,7 @@ class MakePatches(object):
 
                 n_patch += 1
 
-        return self.args.n_patch
+        return n_patch
 
     '''
     def create_3Dpatches(self, volume, p_path, l_path, idx):
