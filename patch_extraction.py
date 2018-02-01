@@ -101,7 +101,7 @@ class MakePatches(object):
         
         for c in range(self.args.n_class-1,-1,-1):
 
-            n_patch = 0
+            patch_cnt = 0
             cnt = 0
             
             while n_patch < n_patch:
@@ -111,7 +111,7 @@ class MakePatches(object):
                 if int(n_patch/2) == len(c_l[c]) or not self.train_bl:
                     if cnt >= len(c_l[c]):
                         if self.train_bl: 
-                            self.args.n_patch = n_patch*2
+                            n_patch = patch_cnt*2
                         break
 
                     l_idx = c_l[c][cnt]
@@ -151,7 +151,7 @@ class MakePatches(object):
                 temp = p_path+'/{}/{}_{}_{}.PNG'.format(c,l_idx[0],l_idx[1],l_idx[2])
                 io.imsave(temp, patches)
 
-                n_patch += 1
+                patch_cnt += 1
 
         return n_patch
 
