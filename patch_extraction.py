@@ -104,7 +104,7 @@ class MakePatches(object):
             patch_cnt = 0
             cnt = 0
             
-            while n_patch < n_patch:
+            while patch_cnt < n_patch/2:
                 
                 l_idx = random.choice(c_l[c])
 
