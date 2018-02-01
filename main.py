@@ -48,20 +48,6 @@ out_dim = 2
 n4b = False # Whether to use or not N4 bias correction image
 n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image: do this)
 
-print('----------------------------------------------')
-print('use_gpu = '+use_gpu)
-print('volume size = {}'.format(args.volume_size))
-print('patch dimension = {}'.format(args.tr_dim))
-print('patch size = {}'.format(args.patch_size))
-print('batch size = {}'.format(args.batch_size))
-print('n_channel = {}'.format(n_channel))
-print('n_class = {}'.format(args.n_class))
-print('n_mode = {}'.format(args.n_mode))
-print('n_patches = {}'.format(args.n_patch))
-print('root = '+args.root)
-print('data name = '+args.data_name)
-print('learning rate = {}'.format(args.learning_rate))
-print('----------------------------------------------')
 
 # Init models
 models, model_path = init_model(args)
