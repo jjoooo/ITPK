@@ -24,6 +24,9 @@ class MakePatches(object):
             self.h = args.patch_size
             self.w = args.patch_size
 
+        self.patch_size = (args.patch_size, args.patch_size)
+        self.volume_size = (args.volume_size, args.volume_size, args.volume_size)
+
         self.train_bl = train_bl
 
     def _label_filtering(self, label, c):
@@ -41,7 +44,7 @@ class MakePatches(object):
     def _patch_filtering(self, patch, c):
 
         # any patch is too small 
-        if patch.shape != self.args.patch_size:
+        if patch.shape != self.patch_size:
             print('patch shape mismatch')
             return False
 
