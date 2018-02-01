@@ -4,6 +4,7 @@ import torch
 from torch.autograd import Variable
 
 from skimage import io
+#from sklearn.preprocessing import minmax_scale
 
 from glob import glob
 
