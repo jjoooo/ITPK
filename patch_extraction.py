@@ -14,20 +14,16 @@ warnings.filterwarnings("ignore")
 # Patch extraction
 class MakePatches(object):
     def __init__(self, args, num_patch, train_bl):
-        self.volume_size = args.volume_size
-        self.patch_size = args.patch_size
-        if args.tr_dim==3:
-            self.d = self.patch_size[0]
-            self.h = self.patch_size[1]
-            self.w = self.patch_size[2]
-        else: 
-            self.h = self.patch_size[0]
-            self.w = self.patch_size[1]
+        self.args = args
 
-        self.num_mode = args.num_mode
-        self.num_class = args.num_class
-        self.num_patch = num_patch
-        self.dim = args.tr_dim
+        if args.tr_dim==3:
+            self.d = args.patch_size
+            self.h = args.patch_size
+            self.w = args.patch_size
+        else: 
+            self.h = args.patch_size
+            self.w = args.patch_size
+
         self.train_bl = train_bl
 
     def _label_filtering(self, label, c):
@@ -45,7 +41,7 @@ class MakePatches(object):
     def _patch_filtering(self, patch, c):
 
         # any patch is too small 
-        if patch.shape != self.patch_size:
+        if patch.shape != self.args.patch_size:
             print('patch shape mismatch')
             return False
 
@@ -61,7 +57,7 @@ class MakePatches(object):
         if c==0:
             m_ent = 0
             ent = np.zeros([self.h,self.w])
-            if self.dim==3:
+            if self.args.tr_dim==3:
                 for i in range(self.d):
                     l_ent = entropy(patch[i].astype(int), disk(self.h))
                     if m_ent < np.mean(l_ent):
@@ -85,33 +81,33 @@ class MakePatches(object):
         np.delete(volume, -1, 0)
 
         c_l = []
-        min_c = self.num_patch/2
-        for c in range(self.num_class):
+        min_c = self.args.n_patch/2
+        for c in range(self.args.n_class):
             c_l.append(np.argwhere(volume_l == c))
             if  min_c  > len(c_l[c]):
                 min_c  = len(c_l[c])
             print('class {} - {}'.format(c,len(c_l[c])))
 
-        self.num_patch = min_c*2
+        self.args.n_patch = min_c*2
        
         
-        print('num patch = {}'.format(self.num_patch))
+        print('num patch = {}'.format(self.args.n_patch))
 
         # random patch each class
         
-        for c in range(self.num_class-1,-1,-1):
+        for c in range(self.args.n_class-1,-1,-1):
 
             n_patch = 0
             cnt = 0
             
-            while n_patch < self.num_patch/2:
+            while n_patch < self.args.n_patch/2:
                 
                 l_idx = random.choice(c_l[c])
 
-                if int(self.num_patch/2) == len(c_l[c]) or not self.train_bl:
+                if int(self.args.n_patch/2) == len(c_l[c]) or not self.train_bl:
                     if cnt >= len(c_l[c]):
                         if self.train_bl: 
-                            self.num_patch = n_patch*2
+                            self.args.n_patch = n_patch*2
                         break
 
                     l_idx = c_l[c][cnt]
@@ -121,7 +117,8 @@ class MakePatches(object):
                 h2 = l_idx[1]+int(self.h/2)
                 w1 = l_idx[2]-int(self.w/2)
                 w2 = l_idx[2]+int(self.w/2)
-                if h1 < 0 or h2 > self.volume_size[1] or w1 < 0 or w2 > self.volume_size[2]:
+
+                if h1 < 0 or h2 > self.args.volume_size or w1 < 0 or w2 > self.args.volume_size:
                     continue
 
                 label = volume_l[l_idx[0], h1:h2, w1:w2]
@@ -132,7 +129,7 @@ class MakePatches(object):
                         continue
 
                     bool_p = True
-                    for m in range(self.num_mode-1):
+                    for m in range(self.args.n_mode-1):
                         patch = volume[m, l_idx[0], h1:h2, w1:w2]
                         # Patch filtering
                         if not self._patch_filtering(patch,c):
@@ -141,7 +138,7 @@ class MakePatches(object):
                     if not bool_p:
                         continue 
                 
-                for m in range(self.num_mode-1):
+                for m in range(self.args.n_mode-1):
                     if m==0:
                         patches = volume[m, l_idx[0], h1:h2, w1:w2]
                     else:
@@ -152,8 +149,7 @@ class MakePatches(object):
 
                 n_patch += 1
 
-
-        return self.num_patch
+        return self.args.n_patch
 
     '''
     def create_3Dpatches(self, volume, p_path, l_path, idx):
