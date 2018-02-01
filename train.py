@@ -15,6 +15,7 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
     loss_path = './loss/lr{}_ps{}_bce_loss'.format(args.learning_rate, args.patch_size)
     if os.path.isfile(loss_path):
         file_loss = open(loss_path, 'a')
+        file_loss.write('\n\n------------------------------------------------------------\n\n')
     else:
         file_loss = open(loss_path, 'w')
 
