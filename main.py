@@ -6,7 +6,6 @@ import random
 # image data
 from skimage import io, color, img_as_float
 from skimage.exposure import adjust_gamma
-#from sklearn.preprocessing import minmax_scale
 import SimpleITK as sitk
 
 from preprocessing import Preprocessing
