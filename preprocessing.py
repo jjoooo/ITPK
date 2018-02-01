@@ -177,7 +177,7 @@ class Preprocessing(object):
             if not self.volume2slices(patient):
                 continue
             
-            if idx > n_val and idx < n_val+2:
+            if idx > n_val and idx < n_val+3:
                 val_str = '/validation/{}'.format(idx)
                 self.train_bool = False
                 print(' --> test patch : '+ patient)

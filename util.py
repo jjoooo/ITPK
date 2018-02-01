@@ -6,14 +6,6 @@ import torch
 import torch.nn as nn
 from resnet2d import Resnet, Classifier
 
-# exist models
-def pretr_model_loading(model_path, model):  
-    
-    # pretrain epoch
-    print('pretrained s model loading: '+model_path)
-    model.load_state_dict(torch.load(model_path))
-
-    return model
 
 def init_model(args):
     # Model init
@@ -30,13 +22,14 @@ def init_model(args):
     if not os.path.exists(path):
         os.makedirs(path)
 
-    models_path = []
     model_idx = 1
     for m in range(len(models)):
-        models_path.append(glob(path+'/*_{}_*.pkl'.format(m)))
-        if models_path[m]:
-            model_path = path + '/miccai_{}_{}.pkl'.format(m, len(models_path[m]))
-            models[m] = pretr_model_loading(model_path, models[m])
-            model_idx = len(models_path[m]) + 1
+        models_path = glob(path+'/miccai_{}.pkl'.format(m))
 
-    return models, model_idx, path
+        # exist models
+        if models_path:
+            model_path = path+'/miccai_{}.pkl'.format(m)
+            print('pretrained s model loading: '+model_path)
+            models[m].load_state_dict(torch.load(model_path))
+
+    return models, path

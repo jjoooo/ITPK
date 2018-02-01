@@ -96,10 +96,13 @@ class MakePatches(object):
         print('num patch = {}'.format(self.num_patch))
 
         # random patch each class
+        
         for c in range(self.num_class-1,-1,-1):
+
             n_patch = 0
             cnt = 0
-            while n_patch < self.num_patch:
+            
+            while n_patch < self.num_patch/2:
                 
                 l_idx = random.choice(c_l[c])
 
@@ -199,7 +202,7 @@ class MakePatches(object):
                     label = volume_l[d1:d2, h1:h2, w1:w2]
                 
                     # Label filtering
-                    if not self._label_filtering(label, c):
+                    if not self._labels_filtering(label, c):
                         continue
 
                     # Patch filtering

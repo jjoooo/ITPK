@@ -9,13 +9,14 @@ from skimage.exposure import adjust_gamma
 #from sklearn.preprocessing import minmax_scale
 import SimpleITK as sitk
 
+from preprocessing import Preprocessing
+
 # Learning
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
 from data_loader import Create_Batch
-from preprocessing import Preprocessing
 from train import training
 from validation import validation
 from util import init_model 
@@ -29,9 +30,9 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu_idx",type=int,default=0)
 parser.add_argument("--n_epoch",type=int,default=100)
-parser.add_argument("--patch_size",type=int,default=64)
-parser.add_argument("--n_patch",type=int,default=1000000)
-parser.add_argument("--batch_size",type=int,default=1024)
+parser.add_argument("--patch_size",type=int,default=32)
+parser.add_argument("--n_patch",type=int,default=200)
+parser.add_argument("--batch_size",type=int,default=128)
 parser.add_argument("--root",type=str,default='/mnt/disk1/data/MRI_Data/')
 parser.add_argument("--data_name",type=str,default='MICCAI2008')
 parser.add_argument("--n_class",type=int,default=2)
@@ -50,9 +51,25 @@ out_dim = 2
 n4b = False # Whether to use or not N4 bias correction image
 n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image: do this)
 
+print('----------------------------------------------')
+print('use_gpu = '+use_gpu)
+print('volume size = {}'.format(args.volume_size))
+print('patch dimension = {}'.format(args.tr_dim))
+print('patch size = {}'.format(args.patch_size))
+print('batch size = {}'.format(args.batch_size))
+print('n_channel = {}'.format(n_channel))
+print('n_class = {}'.format(args.n_class))
+print('n_mode = {}'.format(args.n_mode))
+print('n_patches = {}'.format(args.n_patch))
+print('root = '+args.root)
+print('data name = '+args.data_name)
+print('learning rate = {}'.format(args.learning_rate))
+print('Training = {}'.format(args.train_bl))
+print('----------------------------------------------')
 
 # Init models
-models, model_idx, model_path = init_model(args)
+models, model_path = init_model(args)
+
 
 # Preprocessing
 pp = Preprocessing(args, n4b, n4b_apply)
@@ -72,13 +89,19 @@ for path in val_path:
     val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
     val_batch.append(val_bc.db_load())
 
-# Training start...
 cnt = 1
 for ep in range(args.n_epoch):
-
+    
     # Training
-    models, cnt, model_idx = training(args, tr_batch, models, loss_func, optimizer, cnt, model_idx, model_path)
-
+    models, cnt = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
+    
     # Validation
     for b in val_batch:
         validation(args, b, models, ep)
+
+    ''' # have to edit batch func.
+    # Test
+    for b in val_batch:
+        testing(args, test_batch, models, idx)
+    '''
+    

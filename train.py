@@ -6,7 +6,7 @@ from torch.autograd import Variable
 
 
 # GPU training
-def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_cnt, model_path):
+def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
 
     # writing loss
     if not os.path.exists('./loss'):
@@ -46,15 +46,14 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_cnt, model_p
         optimizer.step()
 
         if cnt % 100 ==0:
-            torch.save(resnet_s.state_dict(),model_path+'/miccai_{}_{}.pkl'.format(0, model_cnt))
-            torch.save(resnet_b.state_dict(),model_path+'/miccai_{}_{}.pkl'.format(1, model_cnt))
-            torch.save(classifier.state_dict(),model_path+'/miccai_{}_{}.pkl'.format(2, model_cnt))
-            model_cnt += 1
+            torch.save(resnet_s.state_dict(),model_path+'/miccai_{}.pkl'.format(0))
+            torch.save(resnet_b.state_dict(),model_path+'/miccai_{}.pkl'.format(1))
+            torch.save(classifier.state_dict(),model_path+'/miccai_{}.pkl'.format(2))
         cnt += 1
     
     models = [resnet_s, resnet_b, classifier]
     print('Train done.')
-    return models, cnt, model_cnt
+    return models, cnt
 
-def training_cpu(self, cnt, model_cnt, model_path):
+def training_cpu(self, cnt, model_path):
     pass
