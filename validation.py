@@ -8,9 +8,16 @@ from torch.autograd import Variable
 # GPU validation
 def validation(args, val_batch, models, ep):
 
+    # Writing accuracy
     if not os.path.exists('./acc'):
         os.makedirs('./acc')
-    file_acc = open('./acc/lr{}_ps{}_acc'.format(args.learning_rate, args.patch_size), 'w')
+    
+    acc_path = './acc/lr{}_ps{}_acc'.format(args.learning_rate, args.patch_size)
+    if os.path.isfile(acc_path):
+        file_acc = open(acc_path, 'a')
+        file_acc.write('\n\n------------------------------------------------------------\n\n')
+    else:
+        file_acc = open(acc_path, 'w')
 
     trsd = 0.5
     ac = 0.0

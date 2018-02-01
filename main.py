@@ -20,7 +20,6 @@ from train import training
 from validation import validation
 from util import init_model 
 
-import time
 import argparse
 
 import warnings
@@ -98,9 +97,9 @@ for ep in range(args.n_epoch):
     for b in val_batch:
         validation(args, b, models, ep)
 
-    ''' # have to edit batch func.
-    # Test
-    for b in val_batch:
-        testing(args, test_batch, models, idx)
-    '''
+''' # have to edit batch func.
+# Test
+for path in val_path:
+    testing(args, path, models, idx)
+'''
     

@@ -17,18 +17,13 @@ warnings.filterwarnings("ignore")
 class Preprocessing(object):
 
     def __init__(self, args, n4, n4_apply):
-        
-        self.num_mode = args.n_mode 
-        self.num_class = args.n_class
-        self.num_patch = args.n_patch 
-        self.volume_size = (args.volume_size, args.volume_size, args.volume_size) 
-        self.patch_size = (args.patch_size, args.patch_size)
+        self.args = args
+
         self.n4bias = n4
         self.n4bias_apply = n4_apply
         self.train_bool = True # Default training
         self.data_name = args.data_name 
         self.root_path = args.root + args.data_name
-        self.dim = args.tr_dim
 
         self.path = ''
         self.ext = ''
@@ -43,7 +38,7 @@ class Preprocessing(object):
         
         self.center_labels = []
 
-        self.slices_by_mode = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
+        self.slices_by_mode = np.zeros((args.n_mode, args.volume_size, args.volume_size, args.volume_size))
         
     def _normalize(self, slice):
         # remove outlier
@@ -58,10 +53,10 @@ class Preprocessing(object):
 
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
-        normed_slices = np.zeros((self.num_mode, self.volume_size[0], self.volume_size[1], self.volume_size[2]))
-        for slice_ix in range(self.volume_size[0]):
+        normed_slices = np.zeros((self.args.num_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
+        for slice_ix in range(self.args.volume_size):
             normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
-            for mode_ix in range(self.num_mode-1):
+            for mode_ix in range(self.args.num_mode-1):
                 normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
                 if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
@@ -159,7 +154,7 @@ class Preprocessing(object):
         use_n4 = ''
         if self.n4bias:
             use_n4 = '_n4'
-        p_path = self.root_path+'/patch/patch_{}'.format(self.patch_size[0])+use_n4
+        p_path = self.root_path+'/patch/patch_{}'.format(self.args.patch_size)+use_n4
         
         if not os.path.exists(p_path):
             os.makedirs(p_path)
@@ -187,16 +182,16 @@ class Preprocessing(object):
 
             normed_slices = self.norm_slices(idx, self.train_bool)
             
-            for i in range(self.num_class):
+            for i in range(self.args.num_class):
                 if not os.path.exists(p_path+val_str):
                     os.makedirs(p_path+val_str)
                 if not os.path.exists(p_path+val_str+'/{}'.format(i)):
                     os.makedirs(p_path+val_str+'/{}'.format(i))
        
             # run patch_extraction
-            pl = MakePatches(self.volume_size, self.patch_size ,self.num_mode, self.num_class, self.num_patch/len(self.patients), self.dim, self.train_bool)
+            pl = MakePatches(self.args, self.args.num_patch/len(self.patients))
 
-            l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, idx)
+            l_p = pl.create_2Dpatches(normed_slices, p_path+val_str)
             len_patch += l_p
             
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))

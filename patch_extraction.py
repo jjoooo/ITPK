@@ -13,10 +13,10 @@ warnings.filterwarnings("ignore")
 
 # Patch extraction
 class MakePatches(object):
-    def __init__(self, volume_size, patch_size, num_mode, num_class, num_patch, dim, train_bl):
-        self.volume_size = volume_size
-        self.patch_size = patch_size
-        if dim==3:
+    def __init__(self, args, num_patch):
+        self.volume_size = args.volume_size
+        self.patch_size = args.patch_size
+        if args.tr_dim==3:
             self.d = self.patch_size[0]
             self.h = self.patch_size[1]
             self.w = self.patch_size[2]
@@ -24,11 +24,11 @@ class MakePatches(object):
             self.h = self.patch_size[0]
             self.w = self.patch_size[1]
 
-        self.num_mode = num_mode
-        self.num_class = num_class
+        self.num_mode = args.num_mode
+        self.num_class = args.num_class
         self.num_patch = num_patch
-        self.dim = dim
-        self.train_bl = train_bl
+        self.dim = args.tr_dim
+        self.train_bl = args.train_bl
 
     def _label_filtering(self, label, c):
 
@@ -79,7 +79,7 @@ class MakePatches(object):
                 return False
         return True
 
-    def create_2Dpatches(self, volume, p_path, idx):
+    def create_2Dpatches(self, volume, p_path):
 
         volume_l = volume[-1]
         np.delete(volume, -1, 0)
@@ -93,6 +93,8 @@ class MakePatches(object):
             print('class {} - {}'.format(c,len(c_l[c])))
 
         self.num_patch = min_c*2
+       
+        
         print('num patch = {}'.format(self.num_patch))
 
         # random patch each class
@@ -109,7 +111,7 @@ class MakePatches(object):
                 if int(self.num_patch/2) == len(c_l[c]) or not self.train_bl:
                     if cnt >= len(c_l[c]):
                         if self.train_bl: 
-                            self.num_patch = n_patch
+                            self.num_patch = n_patch*2
                         break
 
                     l_idx = c_l[c][cnt]
@@ -145,13 +147,13 @@ class MakePatches(object):
                     else:
                         patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
 
-                temp = p_path+'/{}/{}_{}_{}_{}.PNG'.format(c,idx,l_idx[0],l_idx[1],l_idx[2])
+                temp = p_path+'/{}/{}_{}_{}.PNG'.format(c,l_idx[0],l_idx[1],l_idx[2])
                 io.imsave(temp, patches)
 
                 n_patch += 1
 
 
-        return self.num_patch*2
+        return self.num_patch
 
     '''
     def create_3Dpatches(self, volume, p_path, l_path, idx):
