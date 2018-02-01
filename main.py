@@ -96,9 +96,9 @@ for ep in range(args.n_epoch):
     for b in val_batch:
         validation(args, b, models, ep)
 
-
-# Test (segmentation)
+''' # have to edit batch func.
+# Test
 for path in val_path:
     testing(args, path, models, idx)
-
+'''
     

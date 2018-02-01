@@ -53,10 +53,10 @@ class Preprocessing(object):
 
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
-        normed_slices = np.zeros((self.args.num_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
+        normed_slices = np.zeros((self.args.n_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
         for slice_ix in range(self.args.volume_size):
             normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
-            for mode_ix in range(self.args.num_mode-1):
+            for mode_ix in range(self.args.n_mode-1):
                 normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
                 if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
@@ -182,14 +182,14 @@ class Preprocessing(object):
 
             normed_slices = self.norm_slices(idx, self.train_bool)
             
-            for i in range(self.args.num_class):
+            for i in range(self.args.n_class):
                 if not os.path.exists(p_path+val_str):
                     os.makedirs(p_path+val_str)
                 if not os.path.exists(p_path+val_str+'/{}'.format(i)):
                     os.makedirs(p_path+val_str+'/{}'.format(i))
        
             # run patch_extraction
-            pl = MakePatches(self.args, self.args.num_patch/len(self.patients))
+            pl = MakePatches(self.args, self.args.n_patch/len(self.patients), self.train_bool)
 
             l_p = pl.create_2Dpatches(normed_slices, p_path+val_str)
             len_patch += l_p

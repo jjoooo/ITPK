@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 
 # Patch extraction
 class MakePatches(object):
-    def __init__(self, args, num_patch):
+    def __init__(self, args, num_patch, train_bl):
         self.volume_size = args.volume_size
         self.patch_size = args.patch_size
         if args.tr_dim==3:
@@ -28,7 +28,7 @@ class MakePatches(object):
         self.num_class = args.num_class
         self.num_patch = num_patch
         self.dim = args.tr_dim
-        self.train_bl = args.train_bl
+        self.train_bl = train_bl
 
     def _label_filtering(self, label, c):
 
