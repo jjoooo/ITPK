@@ -78,7 +78,7 @@ class MakePatches(object):
                 return False
         return True
 
-    def create_2Dpatches(self, volume, p_path):
+    def create_2Dpatches(self, volume, p_path, idx):
 
         volume_l = volume[-1]
         np.delete(volume, -1, 0)
@@ -148,7 +148,7 @@ class MakePatches(object):
                     else:
                         patches = np.concatenate((patches, volume[m, l_idx[0], h1:h2, w1:w2]))
 
-                temp = p_path+'/{}/{}_{}_{}.PNG'.format(c,l_idx[0],l_idx[1],l_idx[2])
+                temp = p_path+'/{}/{}_{}_{}_{}.PNG'.format(c,l_idx[0],l_idx[1],l_idx[2],idx)
                 io.imsave(temp, patches)
 
                 patch_cnt += 1

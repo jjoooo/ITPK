@@ -191,7 +191,7 @@ class Preprocessing(object):
             # run patch_extraction
             pl = MakePatches(self.args, self.args.n_patch/len(self.patients), self.train_bool)
 
-            l_p = pl.create_2Dpatches(normed_slices, p_path+val_str)
+            l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, idx)
             len_patch += l_p
             
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
