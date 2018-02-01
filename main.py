@@ -14,7 +14,6 @@ from preprocessing import Preprocessing
 # Learning
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from data_loader import Create_Batch
 from train import training
