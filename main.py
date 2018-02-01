@@ -62,7 +62,6 @@ print('n_patches = {}'.format(args.n_patch))
 print('root = '+args.root)
 print('data name = '+args.data_name)
 print('learning rate = {}'.format(args.learning_rate))
-print('Training = {}'.format(args.train_bl))
 print('----------------------------------------------')
 
 # Init models
