@@ -30,7 +30,7 @@ class MakePatches(object):
         self.dim = dim
         self.train_bl = train_bl
 
-    def _labels_filtering(self, label, c):
+    def _label_filtering(self, label, c):
 
         # label filtering
         if c==0:
@@ -123,7 +123,7 @@ class MakePatches(object):
 
                 if self.train_bl:
                     # Label filtering
-                    if not self._labels_filtering(label, c):
+                    if not self._label_filtering(label, c):
                         continue
 
                     bool_p = True
@@ -199,7 +199,7 @@ class MakePatches(object):
                     label = volume_l[d1:d2, h1:h2, w1:w2]
                 
                     # Label filtering
-                    if not self._labels_filtering(label, c):
+                    if not self._label_filtering(label, c):
                         continue
 
                     # Patch filtering
