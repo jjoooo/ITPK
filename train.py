@@ -11,7 +11,12 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
     # writing loss
     if not os.path.exists('./loss'):
         os.makedirs('./loss')
-    file_loss = open('./loss/lr{}_ps{}_bce_loss'.format(args.learning_rate, args.patch_size), 'w')
+
+    loss_path = './loss/lr{}_ps{}_bce_loss'.format(args.learning_rate, args.patch_size)
+    if os.path.isfile(loss_path):
+        file_loss = open(loss_path, 'a')
+    else:
+        file_loss = open(loss_path, 'w')
 
     print('\nTraining start...')
     resnet_s = models[0]
