@@ -9,14 +9,13 @@ from skimage.exposure import adjust_gamma
 #from sklearn.preprocessing import minmax_scale
 import SimpleITK as sitk
 
-from preprocessing import Preprocessing
-
 # Learning
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
 from data_loader import Create_Batch
+from preprocessing import Preprocessing
 from train import training
 from validation import validation
 from util import init_model 
@@ -30,9 +29,9 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu_idx",type=int,default=0)
 parser.add_argument("--n_epoch",type=int,default=100)
-parser.add_argument("--patch_size",type=int,default=32)
-parser.add_argument("--n_patch",type=int,default=200)
-parser.add_argument("--batch_size",type=int,default=128)
+parser.add_argument("--patch_size",type=int,default=64)
+parser.add_argument("--n_patch",type=int,default=1000000)
+parser.add_argument("--batch_size",type=int,default=1024)
 parser.add_argument("--root",type=str,default='/mnt/disk1/data/MRI_Data/')
 parser.add_argument("--data_name",type=str,default='MICCAI2008')
 parser.add_argument("--n_class",type=int,default=2)
