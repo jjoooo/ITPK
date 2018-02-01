@@ -52,7 +52,6 @@ n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image:
 # Init models
 models, model_path = init_model(args)
 
-
 # Preprocessing
 pp = Preprocessing(args, n4b, n4b_apply)
 p_path, all_len = pp.preprocess()
