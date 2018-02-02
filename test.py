@@ -29,7 +29,7 @@ def testing(args, test_path, models, patient_idx):
     for z in range(padd,args.volume_size-strd,strd):
         for y in range(strd,args.volume_size-strd,strd):
             for x in range(strd,args.volume_size-strd,strd):
-                p = glob(test_path+'/**/{}_{}_{}.PNG'.format(z,y,x))
+                p = glob(test_path+'/**/{}_{}_{}_*.PNG'.format(z,y,x))
 
                 if not p: continue
                 if len(p)>1: print('too many patches : '+ p[0])
@@ -69,7 +69,7 @@ def testing(args, test_path, models, patient_idx):
                 output_prob[z, h1:h2, w1:w2] += out_arr
 
         print(' -----> {}/{} success'.format(z,volume_size[0]))
-    print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
+    print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))s
 
     # will change adaptive thsd
     thsd = 0.4 #pow(patch_size[0]/strd, 3)/4 
