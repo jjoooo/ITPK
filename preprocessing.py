@@ -124,7 +124,10 @@ class Preprocessing(object):
         except IndexError:
             print('ERR(index err) : ' + patient)
             return False
-
+        
+        if self.args.n_mode < 3:
+            mode = [t1[0], gt[0]]
+            
         for scan_idx in range(len(mode)):
             self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
         print('         -> Done.')
