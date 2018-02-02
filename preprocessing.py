@@ -127,7 +127,7 @@ class Preprocessing(object):
         
         if self.args.n_mode < 3:
             mode = [t1[0], gt[0]]
-            
+
         for scan_idx in range(len(mode)):
             self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
         print('         -> Done.')
@@ -165,7 +165,6 @@ class Preprocessing(object):
         if len(glob(p_path+'/**')) > 1:
             print('Done.\n')
             return p_path, 0
-        
         
         len_patch = 0
         n_val = 1 

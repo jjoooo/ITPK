@@ -24,7 +24,7 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
     resnet_b = models[1]
     classifier = models[2]
 
-    for img,_ in tr_batch:
+    for img,_,p in tr_batch:
 
         optimizer.zero_grad()
         

@@ -1,6 +1,7 @@
 import numpy as np
 
 import torchvision.datasets as dset
+from folder import ImageFolder
 import torchvision.transforms as transforms
 
 import torch
@@ -54,7 +55,7 @@ class Create_Batch(object):
         return patch_mode
 
     def db_load(self):
-        img_data = dset.ImageFolder(root=self.img_dir, transform = transforms.Compose([
+        img_data = ImageFolder(root=self.img_dir, transform = transforms.Compose([
                                                     transforms.Lambda(lambda x: self.flip(x)),
                                                     transforms.ToTensor()
                                                     ]))

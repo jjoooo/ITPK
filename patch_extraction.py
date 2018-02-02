@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 class MakePatches(object):
     def __init__(self, args, num_patch, train_bl):
         self.args = args
-
+        self.n_patch = int(num_patch)
         if args.tr_dim==3:
             self.d = args.patch_size
             self.h = args.patch_size
@@ -85,7 +85,7 @@ class MakePatches(object):
 
     
         c_l = []
-        min_c = self.args.n_patch/2
+        min_c = int(self.n_patch/2)
         for c in range(self.args.n_class):
             c_l.append(np.argwhere(volume_l == c))
             if  min_c  > len(c_l[c]):
@@ -140,7 +140,7 @@ class MakePatches(object):
                             bool_p = False
                             break
                     if not bool_p:
-                        continue 
+                        continue
                 
                 for m in range(self.args.n_mode-1):
                     if m==0:

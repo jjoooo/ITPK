@@ -31,7 +31,7 @@ def validation(args, val_batch, models, ep):
     resnet_b = models[1]
     classifier = models[2]
 
-    for img,_ in val_batch:
+    for img,_,p in val_batch:
         mid = int(args.patch_size/2)
 
         x1 = Variable(img[:,:,:mid]).cuda()

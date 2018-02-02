@@ -85,6 +85,7 @@ for path in val_path:
     val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
     val_batch.append(val_bc.db_load())
 
+
 cnt = 1
 for ep in range(args.n_epoch):
     
@@ -97,7 +98,7 @@ for ep in range(args.n_epoch):
 
 
 # Test (Segmentation)
-for path in val_path:
-    testing(args, path, models, idx)
+for idx, b in enumerate(val_batch):
+    testing(args, b, models, idx)
 
     

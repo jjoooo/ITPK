@@ -13,63 +13,57 @@ import time
 
 from data_loader import Create_Batch
         
-def testing(args, test_path, models, patient_idx):
+def testing(args, test_batch, models, idx):
 
     output_prob = np.zeros([args.volume_size, args.volume_size, args.volume_size])
     print('Patch segmentation test start...')
 
     tic = time.time()
 
-    strd = 4
-    padd = 100 
 
-    mid = int(args.patch_size/2)
-    test_imgs = Create_Batch(1, mid, args.n_mode-1, '')
+    print('\nValidation start...')
+    resnet_s = models[0]
+    resnet_b = models[1]
+    classifier = models[2]
     
-    for z in range(padd,args.volume_size-strd,strd):
-        for y in range(strd,args.volume_size-strd,strd):
-            for x in range(strd,args.volume_size-strd,strd):
-                p = glob(test_path+'/**/{}_{}_{}_*.PNG'.format(z,y,x))
+    for img,_,p in test_batch:
+        
+        coord = []
+        for pp in p:
+            z,y,x,etc = pp.split('_',3)
+            coord.append([z,y,x])
 
-                if not p: continue
-                if len(p)>1: print('too many patches : '+ p[0])
+        mid = int(args.patch_size/2)
 
-                h1 = y-int(args.patch_size/2)
-                h2 = y+int(args.patch_size/2)
-                w1 = x-int(args.patch_size/2)
-                w2 = x+int(args.patch_size/2)
-
-                if h1 < 0 or h2 > volume_size[1] or w1 < 0 or w2 > volume_size[2]:
-                    continue
+        x1 = Variable(img[:,:,:mid]).cuda()
+        x2 = Variable(img[:,:,mid:]).cuda()
     
-                for m in range(n_mode-1):
-                    if m==0: 
-                        patch = volume[m, z, h1:h2, w1:w2]
-                    else:
-                        patch = np.concatenate((patch, volume[m, z, h1:h2, w1:w2]))
+        out_s = resnet_s.forward(x1)
+        out_b = resnet_b.forward(x2)
 
-                im = io.imread(p[0], plugin='simpleitk').astype(float)
-                patch = test_imgs.test_flip(im)
+        concat_out = torch.cat([out_s,out_b],dim=1)
+        out = classifier.forward(concat_out)
 
-                patch = np.reshape(patch, (1, n_mode-1, args.patch_size, mid))
-                patch = (patch-np.min(patch))/(np.max(patch)-np.min(patch))
-                x1 = Variable(torch.from_numpy(patch[:,:,:mid]).float(), volatile=True).cuda()
-                x2 = Variable(torch.from_numpy(patch[:,:,mid:]).float(), volatile=True).cuda()
+        out_arr = out.data.cpu().numpy()  
+        
+        bc = 0
+        for cd in coord:
+            z = cd[0]
+            y = cd[1]
+            x = cd[2]
 
-                out_s = resnet_s.forward(x1)
-                out_b = resnet_b.forward(x2)
+            h1 = y-int(args.patch_size/2)
+            h2 = y+int(args.patch_size/2)
+            w1 = x-int(args.patch_size/2)
+            w2 = x+int(args.patch_size/2)
 
-                concat_out = torch.cat([out_s,out_b],dim=1)
-                out = classifier.forward(concat_out)
-
-                out_arr = out.data.cpu().numpy()  
-                out_arr = out_arr[0][0]
-                if out_arr > 0.000001:
-                    print(out_arr)
-                output_prob[z, h1:h2, w1:w2] += out_arr
-
-        print(' -----> {}/{} success'.format(z,volume_size[0]))
-    print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))s
+            if h1 < 0 or h2 > args.volume_size or w1 < 0 or w2 > args.volume_size:
+                continue
+            
+            out_arr = out_arr[bc][0]
+            output_prob[z, h1:h2, w1:w2] += out_arr
+            bc += 1
+    print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
 
     # will change adaptive thsd
     thsd = 0.4 #pow(patch_size[0]/strd, 3)/4 
@@ -77,7 +71,7 @@ def testing(args, test_path, models, patient_idx):
     print('threshold = {}\n'.format(thsd)) 
     print('output_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
 
-    path = root + data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx,patch_size[0],n_patch,n_epoch)
+    path = root + data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx, args.patch_size, args.n_patch, args.n_epoch)
     if not os.path.exists(path):
         os.makedirs(path)
     
@@ -88,15 +82,15 @@ def testing(args, test_path, models, patient_idx):
     print('output_prob : minmax-mean = {}'.format(np.mean(output_prob)))
     #output_prob = minmax_scale(output_prob)
 
-    label_path = glob(root+data_name+'/test_label_PNG/{}/**'.format(idx))
-    origin_path = glob(root+data_name+'/test_origin_PNG/{}/**'.format(idx))
+    label_path = glob(args.root+args.data_name+'/test_label_PNG/{}/**'.format(idx))
+    origin_path = glob(args.root+args.data_name+'/test_origin_PNG/{}/**'.format(idx))
     
     label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
     origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
     
     for ix in range(len(origin_path)):
-        label_volume[ix] = io.imread(root+data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(long)
-        origin_volume[ix] = io.imread(root+data_name+'/test_origin_PNG/{}/{}_origin.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
+        label_volume[ix] = io.imread(args.root+args.data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(long)
+        origin_volume[ix] = io.imread(args.root+args.data_name+'/test_origin_PNG/{}/{}_origin.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
 
     vol = img_as_float(origin_volume)
     vol = (vol-np.min(vol))/(np.max(vol)-np.min(vol))
