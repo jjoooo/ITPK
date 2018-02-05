@@ -17,6 +17,7 @@ import torch.nn as nn
 from data_loader import Create_Batch
 from train import training
 from validation import validation
+from test import testing
 from util import init_model 
 
 import argparse
@@ -65,7 +66,6 @@ print('----------------------------------------------')
 
 # Init models
 models, model_path = init_model(args)
-
 
 # Preprocessing
 pp = Preprocessing(args, n4b, n4b_apply)
