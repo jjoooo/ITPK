@@ -58,8 +58,7 @@ class Preprocessing(object):
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
         if self.args.data_name == 'YS':
-            _,h,w = self.slices_by_mode[0].shape
-            normed_slices = np.zeros((1, len(self.slices_by_mode), h, w))
+            normed_slices = []
             slice_len = len(self.slices_by_mode)
         else:
             normed_slices = np.zeros((self.args.n_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
@@ -72,18 +71,18 @@ class Preprocessing(object):
                 for mode_ix in range(self.args.n_mode-1):
                     normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
                     if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
-                            normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
+                        normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                     if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
-                            normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+                        normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
             else:
                 for mode_ix in range(self.args.n_mode-1):
-                    normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[slice_ix])
-                    if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
-                            normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
-                    if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
-                            normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+                    normed_slices.append(self._normalize(self.slices_by_mode[slice_ix]))
+                    if np.max(normed_slices[-1]) != 0: # set values < 1
+                        normed_slices[-1] /= np.max(normed_slices[-1])
+                    if np.min(normed_slices[-1]) <= -1: # set values > -1
+                        normed_slices[-1] /= abs(np.min(normed_slices[-1]))
 
-            if not train_bl:
+            if False:
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
                 if not os.path.exists(l_path):
@@ -234,7 +233,7 @@ class Preprocessing(object):
             pl = MakePatches(self.args, self.args.n_patch/len(self.patients), self.train_bool)
 
             if self.data_name == 'YS':
-                l_p = pl.create_2Dpatches_YS(self, volume, p_path+val_str)
+                l_p = pl.create_2Dpatches_YS(self, normed_slices, p_path+val_str, idx)
                 len_patch += l_p
             else: 
                 l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, idx)
