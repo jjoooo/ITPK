@@ -51,8 +51,13 @@ def validation(args, val_batch, models, ep):
 
         # for accuracy calc
         for b in range(args.batch_size):
+
             out_val = out.data.cpu().numpy()[b,0]
             target_val = target.data.cpu().numpy()[b,0]
+            print(out.data.cpu().numpy().shape)
+            print(out_val.shape)
+            print(target.data.cpu().numpy().shape)
+            print(target_val.shape)
             if target_val == 1:
                 dsc_total += 1
                 if out_val > trsd:

@@ -4,7 +4,8 @@ import torch
 from torch.autograd import Variable
 
 from skimage import io
-#from sklearn.preprocessing import minmax_scale
+from sklearn.preprocessing import minmax_scale
+from sklearn.metrics import roc_auc_score
 
 from glob import glob
 
@@ -44,12 +45,13 @@ def testing(args, test_batch, models, idx):
         out = classifier.forward(concat_out)
 
         out_arr = out.data.cpu().numpy()  
+        tar_arr = _.data.cpu().numpy()
         
         bc = 0
         for cd in coord:
-            z = cd[0]
-            y = cd[1]
-            x = cd[2]
+            z = int(cd[0])
+            y = int(cd[1])
+            x = int(cd[2])
 
             h1 = y-int(args.patch_size/2)
             h2 = y+int(args.patch_size/2)
@@ -60,12 +62,12 @@ def testing(args, test_batch, models, idx):
                 continue
             
             out_arr = out_arr[bc][0]
+            
             output_prob[z, h1:h2, w1:w2] += out_arr
             bc += 1
-    print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
 
-    # will change adaptive thsd
-    thsd = 0.4 #pow(patch_size[0]/strd, 3)/4 
+        thsd = roc_auc_score(tar_arr, out_arr)
+    print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
 
     print('threshold = {}\n'.format(thsd)) 
     print('output_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
@@ -75,11 +77,10 @@ def testing(args, test_batch, models, idx):
         os.makedirs(path)
     
     # min-max scale
-    output_prob = (output_prob-np.min(output_prob))/(np.max(output_prob)-np.min(output_prob))
-    #output_prob[output_prob<thsd] = 0 
+    output_prob[output_prob<thsd] = 0 
 
+    output_prob = minmax_scale(output_prob)
     print('output_prob : minmax-mean = {}'.format(np.mean(output_prob)))
-    #output_prob = minmax_scale(output_prob)
 
     label_path = glob(args.root+args.data_name+'/test_label_PNG/{}/**'.format(idx))
     origin_path = glob(args.root+args.data_name+'/test_origin_PNG/{}/**'.format(idx))
