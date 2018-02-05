@@ -163,11 +163,12 @@ class MakePatches(object):
         
        
         n_patch = 0
+        strd = 4
         for d in range(depth):
             _,height,width = volume[d].shape
 
-            for y in range(height):
-                for x in range(width):
+            for y in range(strd,height-strd,strd):
+                for x in range(strd,width-strd,strd):
                         
                     h1 = y-int(self.h/2)
                     h2 = y+int(self.h/2)

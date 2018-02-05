@@ -18,7 +18,7 @@ class Preprocessing(object):
 
     def __init__(self, args, n4, n4_apply):
         self.args = args
-
+        print(self.args)
         self.n4bias = n4
         self.n4bias_apply = n4_apply
         self.train_bool = True # Default training
@@ -42,8 +42,7 @@ class Preprocessing(object):
         self.center_labels = []
 
         
-        
-        
+
     def _normalize(self, slice):
         # remove outlier
         b, t = np.percentile(slice, (1,99))
@@ -150,9 +149,9 @@ class Preprocessing(object):
                     mode = [flair[0], t1_n4[0], t1_n4[1], t2[0], gt[0]]
                 else:
                     mode = [flair[0], t1_n4[0], t2[0], gt[0]]
-
-                if self.args.n_mode < 3:
-                    mode = [t1[0], gt[0]]
+            
+            if self.args.n_mode < 3:
+                mode = [t1[0], gt[0]]
 
             for scan_idx in range(len(mode)):
                 self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
