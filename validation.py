@@ -54,8 +54,6 @@ def validation(args, val_batch, models, ep):
 
             out_val = out.data.cpu().numpy()[b,0]
             target_val = target.data.cpu().numpy()[b,0]
-           
-            print(out_val)
         
             if target_val == 1:
                 dsc_total += 1
