@@ -96,7 +96,6 @@ class Preprocessing(object):
         else:
             flair=[]; t1_n4=[]; t2=[]; gt=[];
             t1 = glob(path + '/**/*' + self.ext)
-            print(' : t1 = {}'.format(t1))
 
         return flair, t1, t1_n4, t2, gt
 
@@ -106,9 +105,15 @@ class Preprocessing(object):
         mode = []
         # directories to each protocol (5 total)
         flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
-        t1 = [scan for scan in t1s if scan not in t1_n4]
+        
+        if self.args.data_name == 'YS':
+            
+            for scan in t1:
+                self.slices_by_mode[scan_idx] = io.imread(scan, plugin='simpleitk').astype(float)
 
-        try:
+        else:
+            t1 = [scan for scan in t1s if scan not in t1_n4]
+
             if not self.n4bias:
                 if len(t1) > 1:
                     mode = [flair[0], t1[0], t1[1], t2[0], gt[0]]
@@ -128,18 +133,14 @@ class Preprocessing(object):
                     mode = [flair[0], t1_n4[0], t1_n4[1], t2[0], gt[0]]
                 else:
                     mode = [flair[0], t1_n4[0], t2[0], gt[0]]
-        except IndexError:
-            print('ERR(index err) : ' + patient)
-            return False
-        
-        if self.args.n_mode < 3:
-            if self.data_name == 'YS':
-                mode = [t1[0]]
-            else:
-                mode = [t1[0], gt[0]]
 
-        for scan_idx in range(len(mode)):
-            self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
+                if self.args.n_mode < 3:
+                    mode = [t1[0], gt[0]]
+
+                for scan_idx in range(len(mode)):
+                    self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
+
+        
         print('         -> Done.')
 
         return True
