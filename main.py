@@ -16,7 +16,7 @@ from ops.data_loader import Create_Batch
 from train import training
 from validation import validation
 from test import testing
-from ops.util import init_model, ys_mr_load
+from ops.util import init_model
 
 import argparse
 
@@ -83,8 +83,7 @@ for path in val_path:
     val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
     val_batch.append(val_bc.db_load())
 
-test_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/test_ys')
-test_batch = test_bc.db_load()
+
 
 # Training & Validation
 cnt = 1
@@ -107,5 +106,7 @@ for b in val_batch:
 
 
 # Real MR data test (Segmentation)
-   
-_ = testing(args, test_batch, models, 0, thsd)
+if args.data_name == 'YS':
+    test_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/test_ys')
+    test_batch = test_bc.db_load()
+    _ = testing(args, test_batch, models, 0, thsd)
