@@ -58,7 +58,7 @@ class Preprocessing(object):
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
         if self.args.data_name == 'YS':
-            h,w = self.slices_by_mode.shape
+            _,h,w = self.slices_by_mode[0].shape
             normed_slices = np.zeros((1, len(self.slices_by_mode), h, w))
             slice_len = len(self.slices_by_mode)
         else:
@@ -79,10 +79,10 @@ class Preprocessing(object):
                 for mode_ix in range(self.args.n_mode-1):
                     normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[slice_ix])
                     if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
-                            normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[slice_ix])
+                            normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                     if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
-                            normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[slice_ix]))
-                            
+                            normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+
             if not train_bl:
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
