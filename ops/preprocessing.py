@@ -31,15 +31,18 @@ class Preprocessing(object):
         if self.data_name == 'YS':
             self.path = self.root_path + '/MS'
             self.ext = '.dcm'
+            self.slices_by_mode = []
         else:
             self.path = self.root_path + '/training'
             self.ext = '.nhdr'
+            self.slices_by_mode = np.zeros((args.n_mode, args.volume_size, args.volume_size, args.volume_size))
          
         self.patients = glob(self.path + '/**')
         
         self.center_labels = []
 
-        self.slices_by_mode = np.zeros((args.n_mode, args.volume_size, args.volume_size, args.volume_size))
+        
+        
         
     def _normalize(self, slice):
         # remove outlier
@@ -54,17 +57,32 @@ class Preprocessing(object):
 
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
-        normed_slices = np.zeros((self.args.n_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
-        for slice_ix in range(self.args.volume_size):
+        if self.args.data_name == 'YS':
+            h,w = self.slices_by_mode.shape
+            normed_slices = np.zeros((1, len(self.slices_by_mode), h, w))
+            slice_len = len(self.slices_by_mode)
+        else:
+            normed_slices = np.zeros((self.args.n_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
+            slice_len = len(self.slices_by_mode[0])
+        
+        for slice_ix in range(slice_len):
             if self.data_name != 'YS':
                 normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
-            for mode_ix in range(self.args.n_mode-1):
-                normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
-                if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
-                        normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
-                if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
-                        normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
-              
+
+                for mode_ix in range(self.args.n_mode-1):
+                    normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
+                    if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
+                            normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
+                    if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
+                            normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+            else:
+                for mode_ix in range(self.args.n_mode-1):
+                    normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[slice_ix])
+                    if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
+                            normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[slice_ix])
+                    if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
+                            normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[slice_ix]))
+                            
             if not train_bl:
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
@@ -108,8 +126,8 @@ class Preprocessing(object):
         
         if self.args.data_name == 'YS':
             
-            for scan in t1:
-                self.slices_by_mode[scan_idx] = io.imread(scan, plugin='simpleitk').astype(float)
+            for scan in t1s:
+                self.slices_by_mode.append(io.imread(scan, plugin='simpleitk').astype(float))
 
         else:
             t1 = [scan for scan in t1s if scan not in t1_n4]
