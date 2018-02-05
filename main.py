@@ -8,17 +8,17 @@ from skimage import io, color, img_as_float
 from skimage.exposure import adjust_gamma
 import SimpleITK as sitk
 
-from preprocessing import Preprocessing
+from ops.preprocessing import Preprocessing
 
 # Learning
 import torch
 import torch.nn as nn
 
-from data_loader import Create_Batch
+from ops.data_loader import Create_Batch
 from train import training
 from validation import validation
 from test import testing
-from util import init_model 
+from ops.util import init_model 
 
 import argparse
 

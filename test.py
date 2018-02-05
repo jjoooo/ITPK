@@ -11,7 +11,7 @@ from glob import glob
 import numpy as np
 import time
 
-from data_loader import Create_Batch
+from ops.data_loader import Create_Batch
         
 def testing(args, test_batch, models, idx):
 
