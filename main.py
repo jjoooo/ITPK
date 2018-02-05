@@ -73,28 +73,30 @@ loss_func = nn.BCEWithLogitsLoss()
 pp = Preprocessing(args, n4b, n4b_apply)
 p_path, all_len = pp.preprocess()
 
-# Create data batch
-tr_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/train')
-tr_batch = tr_bc.db_load()
 
-val_path = glob(p_path+'/validation/**')
-val_batch = []
-for path in val_path:
-    val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
-    val_batch.append(val_bc.db_load())
+if args.data_name != 'YS':
+
+    # Create data batch
+    tr_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/train')
+    tr_batch = tr_bc.db_load()
+
+    val_path = glob(p_path+'/validation/**')
+    val_batch = []
+    for path in val_path:
+        val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
+        val_batch.append(val_bc.db_load())
 
 
-
-# Training & Validation
-cnt = 1
-for ep in range(args.n_epoch):
-    
-    # Training
-    models, cnt = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
-    
-    # Validation
-    for b in val_batch:
-        validation(args, b, models, ep)
+    # Training & Validation
+    cnt = 1
+    for ep in range(args.n_epoch):
+        
+        # Training
+        models, cnt = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
+        
+        # Validation
+        for b in val_batch:
+            validation(args, b, models, ep)
 
 
 # Test (Segmentation)
