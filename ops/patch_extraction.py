@@ -176,8 +176,9 @@ class MakePatches(object):
 
                     if h1 < 0 or h2 > height or w1 < 0 or w2 > width:
                         continue
-
-                    patches = volume[d, h1:h2, w1:w2]
+                    
+                    slice = volume[d]
+                    patches = slice[0, h1:h2, w1:w2]
 
                     temp = p_path+'/0/{}_{}_{}_{}.PNG'.format(d,y,x,idx)
                     io.imsave(temp, patches)

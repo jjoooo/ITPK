@@ -233,7 +233,7 @@ class Preprocessing(object):
             pl = MakePatches(self.args, self.args.n_patch/len(self.patients), self.train_bool)
 
             if self.data_name == 'YS':
-                l_p = pl.create_2Dpatches_YS(self, normed_slices, p_path+val_str, idx)
+                l_p = pl.create_2Dpatches_YS(normed_slices, p_path+val_str, idx)
                 len_patch += l_p
             else: 
                 l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, idx)
