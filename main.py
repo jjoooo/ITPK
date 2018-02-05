@@ -16,7 +16,7 @@ from ops.data_loader import Create_Batch
 from train import training
 from validation import validation
 from test import testing
-from ops.util import init_model 
+from ops.util import init_model, ys_mr_load
 
 import argparse
 
@@ -65,13 +65,13 @@ print('----------------------------------------------')
 # Init models
 models, model_path = init_model(args)
 
-# Preprocessing
-pp = Preprocessing(args, n4b, n4b_apply)
-p_path, all_len = pp.preprocess()
-
 # Init optimizer, loss function
 optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
 loss_func = nn.BCEWithLogitsLoss()
+
+# Preprocessing
+pp = Preprocessing(args, n4b, n4b_apply)
+p_path, all_len = pp.preprocess()
 
 # Create data batch
 tr_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/train')
@@ -83,7 +83,10 @@ for path in val_path:
     val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
     val_batch.append(val_bc.db_load())
 
+test_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/test_ys')
+test_batch = test_bc.db_load()
 
+# Training & Validation
 cnt = 1
 for ep in range(args.n_epoch):
     
@@ -97,8 +100,12 @@ for ep in range(args.n_epoch):
 
 # Test (Segmentation)
 idx = 2
+thsd = 0
 for b in val_batch:
-    testing(args, b, models, idx)
+    thsd = testing(args, b, models, idx, thsd)
     idx +=1
 
-    
+
+# Real MR data test (Segmentation)
+   
+_ = testing(args, test_batch, models, 0, thsd)

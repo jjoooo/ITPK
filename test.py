@@ -16,7 +16,7 @@ import time
 
 
         
-def testing(args, test_batch, models, idx):
+def testing(args, test_batch, models, idx, thsd):
 
     print('Batch len = {}\n'.format(len(test_batch)))
     output_prob = np.zeros([args.volume_size, args.volume_size, args.volume_size])
@@ -64,17 +64,26 @@ def testing(args, test_batch, models, idx):
             
             output_prob[z, h1:h2, w1:w2] += out_arr[bc][0]
 
-        thsd = roc_auc_score(tar_arr, out_arr)
+        if self.args.data_name != 'YS':
+            thsd = roc_auc_score(tar_arr, out_arr)
+            print('\nthreshold = {}\n'.format(thsd)) 
+
     print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
 
-    print('threshold = {}\n'.format(thsd)) 
-    print('output_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
+    save_result(args, output_prob, idx, thsd)
+
+    return thsd
+
+
+    
+def save_result(args, output_prob, idx, thsd):
 
     path = args.root + args.data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx, args.patch_size, args.n_patch, args.n_epoch)
     if not os.path.exists(path):
         os.makedirs(path)
-    
+
     # min-max scale
+    
     output_prob[output_prob<thsd] = 0 
 
     output_prob = (output_prob-np.min(output_prob))/(np.max(output_prob)-np.min(output_prob))
@@ -98,7 +107,8 @@ def testing(args, test_batch, models, idx):
     label_rgb = img_as_float(label_volume)
     label_rgb = color.gray2rgb(label_rgb)
 
-    rgb_class = color.gray2rgb(output_prob)
+    rgb_class = img_as_float(output_prob)
+    rgb_class = color.gray2rgb(rgb_class)
 
     red_mul = [1,0,0]
     
@@ -126,9 +136,12 @@ def testing(args, test_batch, models, idx):
         vol_label /= abs(np.min(vol_label))
     print('vol : min={},max={}'.format(np.min(vol_label),np.max(vol_label)))
 
+    
     i = 0
-    for slice_inf, slice_label in zip(vol_inf,vol_label):
-        io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
-        io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)
+    for slice, slice_inf, slice_label in zip(vol,vol_inf,vol_label):
+        concat_img = np.concatenate((slice,slice_inf,slice_label), axis=1)
+        io.imsave(path+'/{}_predict.PNG'.format(i), concat_img)
+        #io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
+        #io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)
         i += 1
     print('Volume saved.')
