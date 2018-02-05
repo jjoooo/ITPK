@@ -54,10 +54,9 @@ def validation(args, val_batch, models, ep):
 
             out_val = out.data.cpu().numpy()[b,0]
             target_val = target.data.cpu().numpy()[b,0]
-            print(out.data.cpu().numpy().shape)
-            print(out_val.shape)
-            print(target.data.cpu().numpy().shape)
-            print(target_val.shape)
+           
+            print(out_val)
+        
             if target_val == 1:
                 dsc_total += 1
                 if out_val > trsd:
@@ -68,8 +67,8 @@ def validation(args, val_batch, models, ep):
             if out_val  > trsd:
                 dsc_total += 1
             sum_out += out_val
-            total += 1
+          
 
-    print('predict avg = {}, dsc = {}%, accuracy = {}%'.format(sum_out/(args.batch_size*len(val_batch)), 2*ac/dsc_total*100, (ac+ac_zero)/total*100))
-    file_acc.write('Epoch {} : predict avg = {}, dsc = {}%, accuracy = {}%\n'.format(ep, sum_out/(args.batch_size*len(val_batch)), 2*ac/dsc_total*100, (ac+ac_zero)/total*100))
+    print('predict avg = {}, dsc = {}%, accuracy = {}%'.format(sum_out/(args.batch_size*len(val_batch)), (2*ac)/dsc_total*100, (ac+ac_zero)/(args.batch_size*len(val_batch))*100))
+    file_acc.write('Epoch {} : predict avg = {}, dsc = {}%, accuracy = {}%\n'.format(ep, sum_out/(args.batch_size*len(val_batch)), (2*ac)/dsc_total*100, (ac+ac_zero)/(args.batch_size*len(val_batch))*100))
     print('Validation done.\n') 

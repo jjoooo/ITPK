@@ -4,8 +4,6 @@ from glob import glob
 import random
 
 # image data
-from skimage import io, color, img_as_float
-from skimage.exposure import adjust_gamma
 import SimpleITK as sitk
 
 from ops.preprocessing import Preprocessing
@@ -98,7 +96,9 @@ for ep in range(args.n_epoch):
 
 
 # Test (Segmentation)
-for idx, b in enumerate(val_batch):
+idx = 2
+for b in val_batch:
     testing(args, b, models, idx)
+    idx +=1
 
     

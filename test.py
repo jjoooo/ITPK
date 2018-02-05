@@ -6,22 +6,24 @@ from torch.autograd import Variable
 from skimage import io
 from sklearn.preprocessing import minmax_scale
 from sklearn.metrics import roc_auc_score
+from skimage import io, color, img_as_float
+from skimage.exposure import adjust_gamma
 
 from glob import glob
 
 import numpy as np
 import time
 
+
         
 def testing(args, test_batch, models, idx):
 
+    print('Batch len = {}\n'.format(len(test_batch)))
     output_prob = np.zeros([args.volume_size, args.volume_size, args.volume_size])
     print('Patch segmentation test start...')
 
     tic = time.time()
 
-
-    print('\nValidation start...')
     resnet_s = models[0]
     resnet_b = models[1]
     classifier = models[2]
@@ -45,10 +47,9 @@ def testing(args, test_batch, models, idx):
         out = classifier.forward(concat_out)
 
         out_arr = out.data.cpu().numpy()  
-        tar_arr = _.data.cpu().numpy()
+        tar_arr = _.numpy()
         
-        bc = 0
-        for cd in coord:
+        for bc, cd in enumerate(coord):
             z = int(cd[0])
             y = int(cd[1])
             x = int(cd[2])
@@ -61,10 +62,7 @@ def testing(args, test_batch, models, idx):
             if h1 < 0 or h2 > args.volume_size or w1 < 0 or w2 > args.volume_size:
                 continue
             
-            out_arr = out_arr[bc][0]
-            
-            output_prob[z, h1:h2, w1:w2] += out_arr
-            bc += 1
+            output_prob[z, h1:h2, w1:w2] += out_arr[bc][0]
 
         thsd = roc_auc_score(tar_arr, out_arr)
     print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
@@ -72,21 +70,22 @@ def testing(args, test_batch, models, idx):
     print('threshold = {}\n'.format(thsd)) 
     print('output_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
 
-    path = root + data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx, args.patch_size, args.n_patch, args.n_epoch)
+    path = args.root + args.data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx, args.patch_size, args.n_patch, args.n_epoch)
     if not os.path.exists(path):
         os.makedirs(path)
     
     # min-max scale
     output_prob[output_prob<thsd] = 0 
 
-    output_prob = minmax_scale(output_prob)
-    print('output_prob : minmax-mean = {}'.format(np.mean(output_prob)))
+    output_prob = (output_prob-np.min(output_prob))/(np.max(output_prob)-np.min(output_prob))
+    print('after minmax \noutput_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
+    print('output_prob : mean = {}'.format(np.mean(output_prob)))
 
     label_path = glob(args.root+args.data_name+'/test_label_PNG/{}/**'.format(idx))
     origin_path = glob(args.root+args.data_name+'/test_origin_PNG/{}/**'.format(idx))
     
-    label_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
-    origin_volume = np.zeros([volume_size[0], volume_size[1], volume_size[2]])
+    label_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
+    origin_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
     
     for ix in range(len(origin_path)):
         label_volume[ix] = io.imread(args.root+args.data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(long)
@@ -96,21 +95,40 @@ def testing(args, test_batch, models, idx):
     vol = (vol-np.min(vol))/(np.max(vol)-np.min(vol))
     vol = adjust_gamma(color.gray2rgb(vol), 0.5)
 
-    red_mul = [1,0,0]
+    label_rgb = img_as_float(label_volume)
+    label_rgb = color.gray2rgb(label_rgb)
+
     rgb_class = color.gray2rgb(output_prob)
+
+    red_mul = [1,0,0]
+    
     rgb_class = red_mul * rgb_class
+    label_rgb = red_mul * label_rgb
+
     rgb_class = adjust_gamma(rgb_class, 0.5)
-    vol[output_prob>thsd] += rgb_class[output_prob>thsd]
-    vol = (vol - np.mean(vol)) / np.std(vol)
-    if np.max(vol) != 0: # set values < 1
-        vol /= np.max(vol)
-    if np.min(vol) <= -1: # set values > -1
-        vol /= abs(np.min(vol))
-    print('vol : min={},max={}'.format(np.min(vol),np.max(vol)))
+    label_rgb = adjust_gamma(label_rgb, 0.5)
+
+    vol_inf = vol+rgb_class
+
+    vol_inf = (vol_inf - np.mean(vol_inf)) / np.std(vol_inf)
+    if np.max(vol_inf) != 0: # set values < 1
+        vol_inf /= np.max(vol_inf)
+    if np.min(vol_inf) <= -1: # set values > -1
+        vol_inf /= abs(np.min(vol_inf))
+    print('vol : min={},max={}'.format(np.min(vol_inf),np.max(vol_inf)))
+
+    vol_label = vol+label_rgb
+
+    vol_label = (vol_label - np.mean(vol_label)) / np.std(vol_label)
+    if np.max(vol_label) != 0: # set values < 1
+        vol_label /= np.max(vol_label)
+    if np.min(vol_label) <= -1: # set values > -1
+        vol_label /= abs(np.min(vol_label))
+    print('vol : min={},max={}'.format(np.min(vol_label),np.max(vol_label)))
 
     i = 0
-    for slice_prob, slice_rgb in zip(output_prob,vol):
-        io.imsave(path+'/{}_predict_prob.PNG'.format(i), slice_prob)
-        io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_rgb)
+    for slice_inf, slice_label in zip(vol_inf,vol_label):
+        io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
+        io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)
         i += 1
     print('Volume saved.')
