@@ -155,6 +155,33 @@ class MakePatches(object):
 
         return n_patch
 
+
+    def create_2Dpatches_YS(self, volume, p_path):
+
+       # random patch each class
+        n_patch = 0
+        for d in range(self.volume_size[0]):
+            for y in range(self.volume_size[1]):
+                for x in range(self.volume_size[2]):
+                        
+                    h1 = y-int(self.h/2)
+                    h2 = y+int(self.h/2)
+                    w1 = x-int(self.w/2)
+                    w2 = x+int(self.w/2)
+
+                    if h1 < 0 or h2 > self.volume_size[1] or w1 < 0 or w2 > self.volume_size[2]:
+                        continue
+
+                    patches = volume[m, d, h1:h2, w1:w2]
+
+                    temp = p_path+'/0/{}_{}_{}_{}.PNG'.format(d,y,x,idx)
+                    io.imsave(temp, patches)
+
+                    n_patch += 1
+
+        return n_patch
+
+
     '''
     def create_3Dpatches(self, volume, p_path, l_path, idx):
 

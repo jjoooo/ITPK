@@ -28,12 +28,13 @@ class Preprocessing(object):
         self.path = ''
         self.ext = ''
 
-        if self.train_bool:
-            self.path = self.root_path + '/training'
+        if self.data_name == 'YS':
+            self.path = self.root_path + '/MS'
+            self.ext = '.dcm'
         else:
-            self.path = self.root_path + '/test'
-        self.ext = '.nhdr'
-
+            self.path = self.root_path + '/training'
+            self.ext = '.nhdr'
+         
         self.patients = glob(self.path + '/**')
         
         self.center_labels = []
@@ -55,7 +56,8 @@ class Preprocessing(object):
         print('         -> Normalizing slices...')
         normed_slices = np.zeros((self.args.n_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
         for slice_ix in range(self.args.volume_size):
-            normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
+            if self.data_name != 'YS':
+                normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
             for mode_ix in range(self.args.n_mode-1):
                 normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
                 if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
@@ -90,6 +92,10 @@ class Preprocessing(object):
             t1_n4 = glob(path + '/*T1*/*_n.mha')
             t2 = glob(path + '/*_T2*/*' + self.ext)
             gt = glob(path + '/*OT*/*' + self.ext)
+
+        else:
+            flair=[]; t1_n4=[]; t2=[]; gt=[];
+            t1 = glob(path + '/**/*' + self.ext)
 
         return flair, t1, t1_n4, t2, gt
 
@@ -126,7 +132,10 @@ class Preprocessing(object):
             return False
         
         if self.args.n_mode < 3:
-            mode = [t1[0], gt[0]]
+            if self.data_name == 'YS':
+                mode = [t1[0]]
+            else:
+                mode = [t1[0], gt[0]]
 
         for scan_idx in range(len(mode)):
             self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
@@ -154,10 +163,11 @@ class Preprocessing(object):
 
     def preprocess(self):
         print('\nCreate patches...')
-        use_n4 = ''
+        add_str = ''
         if self.n4bias:
-            use_n4 = '_n4'
-        p_path = self.root_path+'/patch/patch_{}'.format(self.args.patch_size)+use_n4
+            add_str = '_n4'
+
+        p_path = self.root_path+'/patch/patch_{}'.format(self.args.patch_size)+add_str
         
         if not os.path.exists(p_path):
             os.makedirs(p_path)
@@ -173,28 +183,42 @@ class Preprocessing(object):
 
             if not self.volume2slices(patient):
                 continue
-            
-            if idx > n_val and idx < n_val+3:
-                val_str = '/validation/{}'.format(idx)
+         
+            if self.data_name == 'YS':
                 self.train_bool = False
-                print(' --> test patch : '+ patient)
-            else:
-                val_str = '/train'
-                self.train_bool = True
-
-            normed_slices = self.norm_slices(idx, self.train_bool)
-            
-            for i in range(self.args.n_class):
+                val_str = '/test_ys/0'
                 if not os.path.exists(p_path+val_str):
                     os.makedirs(p_path+val_str)
-                if not os.path.exists(p_path+val_str+'/{}'.format(i)):
-                    os.makedirs(p_path+val_str+'/{}'.format(i))
+                if not os.path.exists(p_path+val_str+'/0'):
+                    os.makedirs(p_path+val_str+'/0')
+                
+            else:
+                if idx > n_val and idx < n_val+3:
+                    val_str = '/validation/{}'.format(idx)
+                    self.train_bool = False
+                    print(' --> test patch : '+ patient)
+                else:
+                    val_str = '/train'
+                    self.train_bool = True
+
+                for i in range(self.args.n_class):
+                    if not os.path.exists(p_path+val_str):
+                        os.makedirs(p_path+val_str)
+                    if not os.path.exists(p_path+val_str+'/{}'.format(i)):
+                        os.makedirs(p_path+val_str+'/{}'.format(i))
+
+
+            normed_slices = self.norm_slices(idx, self.train_bool)
        
             # run patch_extraction
             pl = MakePatches(self.args, self.args.n_patch/len(self.patients), self.train_bool)
 
-            l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, idx)
-            len_patch += l_p
+            if self.data_name == 'YS':
+                l_p = pl.create_2Dpatches_YS(self, volume, p_path+val_str)
+                len_patch += l_p
+            else: 
+                l_p = pl.create_2Dpatches(normed_slices, p_path+val_str, idx)
+                len_patch += l_p
             
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
         print('\n\nnum of all patch = {}'.format(len_patch))
