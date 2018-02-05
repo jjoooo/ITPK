@@ -7,7 +7,7 @@ import random
 from skimage import io
 import SimpleITK as sitk
 
-from patch_extraction import MakePatches
+from ops.patch_extraction import MakePatches
 
 import warnings
 warnings.filterwarnings("ignore")

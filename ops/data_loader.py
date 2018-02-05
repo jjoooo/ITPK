@@ -1,7 +1,7 @@
 import numpy as np
 
 import torchvision.datasets as dset
-from folder import ImageFolder
+from ops.folder import ImageFolder
 import torchvision.transforms as transforms
 
 import torch
