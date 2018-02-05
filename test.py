@@ -64,7 +64,7 @@ def testing(args, test_batch, models, idx, thsd):
             
             output_prob[z, h1:h2, w1:w2] += out_arr[bc][0]
 
-        if self.args.data_name != 'YS':
+        if args.data_name != 'YS':
             thsd = roc_auc_score(tar_arr, out_arr)
             print('\nthreshold = {}\n'.format(thsd)) 
 
