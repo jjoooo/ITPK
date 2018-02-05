@@ -96,6 +96,7 @@ class Preprocessing(object):
         else:
             flair=[]; t1_n4=[]; t2=[]; gt=[];
             t1 = glob(path + '/**/*' + self.ext)
+            print(' : t1 = {}'.format(t1))
 
         return flair, t1, t1_n4, t2, gt
 
