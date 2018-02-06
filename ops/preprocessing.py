@@ -153,12 +153,12 @@ class Preprocessing(object):
                 else:
                     mode = [flair[0], t1_n4[0], t2[0], gt[0]]
 
-                if self.args.n_mode < 3:
-                    mode = [t1[0], gt[0]]
+            if self.args.n_mode < 3:
+                mode = [t1[0], gt[0]]
 
-                for scan_idx in range(len(mode)):
-                    self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
-        
+            for scan_idx in range(len(mode)):
+                self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
+    
         print('         -> Done.')
 
         return True
