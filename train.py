@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+from sklearn.metrics import roc_auc_score
 
 # GPU training
 def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
@@ -24,6 +25,8 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
     resnet_b = models[1]
     classifier = models[2]
 
+    thsd = 0.0
+    thsd_cnt = 0
     for img,_,p in tr_batch:
 
         optimizer.zero_grad()
@@ -56,10 +59,17 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
             torch.save(resnet_b.state_dict(),model_path+'/miccai_{}.pkl'.format(1))
             torch.save(classifier.state_dict(),model_path+'/miccai_{}.pkl'.format(2))
         cnt += 1
-    
+
+        out_arr = out.data.cpu().numpy()  
+        tar_arr = _.numpy()
+        thsd += roc_auc_score(tar_arr, out_arr)
+        thsd_cnt += 1
+        print('\nthreshold = {}\n'.format(thsd)) 
+
     models = [resnet_s, resnet_b, classifier]
     print('Train done.')
-    return models, cnt
+
+    return models, cnt, thsd/thsd_cnt
 
 def training_cpu(self, cnt, model_path):
     pass

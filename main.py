@@ -26,13 +26,13 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu_idx",type=int,default=0)
 parser.add_argument("--n_epoch",type=int,default=100)
-parser.add_argument("--patch_size",type=int,default=64)
-parser.add_argument("--n_patch",type=int,default=1000000)
+parser.add_argument("--patch_size",type=int,default=16)
+parser.add_argument("--n_patch",type=int,default=1000)
 parser.add_argument("--batch_size",type=int,default=1024)
-parser.add_argument("--root",type=str,default='/mnt/disk1/data/MRI_Data/')
-parser.add_argument("--data_name",type=str,default='MICCAI2008')
+parser.add_argument("--root",type=str,default='/Users/jui/Downloads/Data/')
+parser.add_argument("--data_name",type=str,default='YS')
 parser.add_argument("--n_class",type=int,default=2)
-parser.add_argument("--n_mode",type=int,default=4)
+parser.add_argument("--n_mode",type=int,default=2)
 parser.add_argument("--volume_size",type=int,default=512)
 parser.add_argument("--learning_rate",type=float,default=0.0002)
 parser.add_argument("--tr_dim",type=int,default=2)
@@ -46,6 +46,7 @@ out_dim = 2
 
 n4b = False # Whether to use or not N4 bias correction image
 n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image: do this)
+
 
 print('----------------------------------------------')
 print(args)
@@ -75,21 +76,22 @@ for path in val_path:
 
 # Training & Validation
 cnt = 1
+
 for ep in range(args.n_epoch):
     
     # Training
-    models, cnt = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
+    models, cnt, thsd = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
     
     # Validation
     for b in val_batch:
-        validation(args, b, models, ep)
-
+        validation(args, b, models, ep, thsd)
+    pass
 
 # Test (Segmentation)
 idx = 2
-thsd = 0
+
 for b in val_batch:
-    thsd = testing(args, b, models, idx, thsd)
+    testing(args, b, models, idx, thsd)
     idx +=1
 
 
@@ -97,4 +99,4 @@ for b in val_batch:
 if args.data_name == 'YS':
     test_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/test_ys')
     test_batch = test_bc.db_load()
-    _ = testing(args, test_batch, models, 0, thsd)
+    testing(args, test_batch, models, 0, thsd)

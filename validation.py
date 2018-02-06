@@ -6,7 +6,7 @@ from torch.autograd import Variable
 
 
 # GPU validation
-def validation(args, val_batch, models, ep):
+def validation(args, val_batch, models, ep, thsd):
 
     # Writing accuracy
     if not os.path.exists('./acc'):
@@ -19,7 +19,6 @@ def validation(args, val_batch, models, ep):
     else:
         file_acc = open(acc_path, 'w')
 
-    trsd = 0.5
     ac = 0.0
     total = 0
     dsc_total = 0
@@ -57,12 +56,12 @@ def validation(args, val_batch, models, ep):
         
             if target_val == 1:
                 dsc_total += 1
-                if out_val > trsd:
+                if out_val > thsd:
                     ac += 1
             else:
-                if out_val <= trsd:
+                if out_val <= thsd:
                     ac_zero += 1
-            if out_val  > trsd:
+            if out_val  > thsd:
                 dsc_total += 1
             sum_out += out_val
           

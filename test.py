@@ -5,7 +5,7 @@ from torch.autograd import Variable
 
 from skimage import io
 from sklearn.preprocessing import minmax_scale
-from sklearn.metrics import roc_auc_score
+
 from skimage import io, color, img_as_float
 from skimage.exposure import adjust_gamma
 
@@ -64,15 +64,11 @@ def testing(args, test_batch, models, idx, thsd):
             
             output_prob[z, h1:h2, w1:w2] += out_arr[bc][0]
 
-        if args.data_name != 'YS':
-            thsd = roc_auc_score(tar_arr, out_arr)
-            print('\nthreshold = {}\n'.format(thsd)) 
 
     print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
 
     save_result(args, output_prob, idx, thsd)
 
-    return thsd
 
 
     
