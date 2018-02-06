@@ -55,20 +55,22 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
         optimizer.step()
 
         if cnt % 100 ==0:
-            torch.save(resnet_s.state_dict(),model_path+'/miccai_{}.pkl'.format(0))
-            torch.save(resnet_b.state_dict(),model_path+'/miccai_{}.pkl'.format(1))
-            torch.save(classifier.state_dict(),model_path+'/miccai_{}.pkl'.format(2))
+            torch.save(resnet_s.state_dict(),model_path+'/mode_{}/miccai_{}.pkl'.format(args.n_mode,0))
+            torch.save(resnet_b.state_dict(),model_path+'/mode_{}/miccai_{}.pkl'.format(args.n_mode,1))
+            torch.save(classifier.state_dict(),model_path+'/mode_{}/miccai_{}.pkl'.format(args.n_mode,2))
         cnt += 1
 
         out_arr = out.data.cpu().numpy()  
         tar_arr = _.numpy()
         thsd += roc_auc_score(tar_arr, out_arr)
         thsd_cnt += 1
-        print('\nthreshold = {}\n'.format(thsd)) 
+        
 
     models = [resnet_s, resnet_b, classifier]
-    print('Train done.')
 
+    print('\nthreshold = {}\n'.format(thsd/thsd_cnt)) 
+    print('Train done.')
+    
     return models, cnt, thsd/thsd_cnt
 
 def training_cpu(self, cnt, model_path):

@@ -64,9 +64,6 @@ def testing(args, test_batch, models, idx, thsd):
             
             output_prob[z, h1:h2, w1:w2] += out_arr[bc][0]
 
-    if args.data_name == 'YS':
-        thsd += roc_auc_score(tar_arr, out_arr)
-        print('\nthreshold = {}\n'.format(thsd)) 
 
     print('Done. (prediction elapsed: %.2fs)' % (time.time() - tic))
 
@@ -77,7 +74,7 @@ def testing(args, test_batch, models, idx, thsd):
     
 def save_result(args, output_prob, idx, thsd):
 
-    path = args.root + args.data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx, args.patch_size, args.n_patch, args.n_epoch)
+    path = args.root + args.data_name + '/test_result_PNG/{}_{}_{}_{}'.format(idx, args.patch_size, args.n_patch, args.n_mode)
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -89,34 +86,33 @@ def save_result(args, output_prob, idx, thsd):
     print('after minmax \noutput_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
     print('output_prob : mean = {}'.format(np.mean(output_prob)))
 
-    label_path = glob(args.root+args.data_name+'/test_label_PNG/{}/**'.format(idx))
     origin_path = glob(args.root+args.data_name+'/test_origin_PNG/{}/**'.format(idx))
-    
-    label_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
-    origin_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
+    origin_volume = [np.zeros([args.volume_size, args.volume_size, args.volume_size])]
+
+    if args.data_name != 'YS':
+        label_path = glob(args.root+args.data_name+'/test_label_PNG/{}/**'.format(idx))
+        label_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
     
     for ix in range(len(origin_path)):
-        label_volume[ix] = io.imread(args.root+args.data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(long)
-        origin_volume[ix] = io.imread(args.root+args.data_name+'/test_origin_PNG/{}/{}_origin.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
+        org = io.imread(args.root+args.data_name+'/test_origin_PNG/{}/{}_origin.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
+        h,w = org.shape
+        origin_volume[ix][0:h, 0:w] = org[0:h, 0:w]
+        if args.data_name != 'YS':
+            label_volume[ix] = io.imread(args.root+args.data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(long)
 
     vol = img_as_float(origin_volume)
     vol = (vol-np.min(vol))/(np.max(vol)-np.min(vol))
-    vol = adjust_gamma(color.gray2rgb(vol), 0.4)
+    vol = adjust_gamma(color.gray2rgb(vol), 0.5)
 
-    label_rgb = img_as_float(label_volume)
-    label_rgb = color.gray2rgb(label_rgb)
+
+    red_mul = [1,0,0]
 
     infer_rgb = img_as_float(output_prob)
     infer_rgb = color.gray2rgb(infer_rgb)
 
-    red_mul = [1,0,0]
-    
     infer_rgb = red_mul * infer_rgb
-    label_rgb = red_mul * label_rgb
-
-    infer_rgb = adjust_gamma(infer_rgb, 0.6)
-    label_rgb = adjust_gamma(label_rgb, 0.6)
-
+    infer_rgb = adjust_gamma(infer_rgb, 0.8)
+    
     vol_inf = vol+infer_rgb
 
     vol_inf = (vol_inf - np.mean(vol_inf)) / np.std(vol_inf)
@@ -125,20 +121,40 @@ def save_result(args, output_prob, idx, thsd):
     if np.min(vol_inf) <= -1: # set values > -1
         vol_inf /= abs(np.min(vol_inf))
 
-    vol_label = vol+label_rgb
+    if args.data_name != 'YS':
+        label_rgb = img_as_float(label_volume)
+        label_rgb = color.gray2rgb(label_rgb)
+        label_rgb = red_mul * label_rgb
+        label_rgb = adjust_gamma(label_rgb, 0.5)
 
-    vol_label = (vol_label - np.mean(vol_label)) / np.std(vol_label)
-    if np.max(vol_label) != 0: # set values < 1
-        vol_label /= np.max(vol_label)
-    if np.min(vol_label) <= -1: # set values > -1
-        vol_label /= abs(np.min(vol_label))
+        vol_label = vol+label_rgb
+
+        vol_label = (vol_label - np.mean(vol_label)) / np.std(vol_label)
+        if np.max(vol_label) != 0: # set values < 1
+            vol_label /= np.max(vol_label)
+        if np.min(vol_label) <= -1: # set values > -1
+            vol_label /= abs(np.min(vol_label))
 
     
-    i = 0
-    for slice, slice_inf, slice_label in zip(vol,vol_inf,vol_label):
-        concat_img = np.concatenate((slice,slice_inf,slice_label), axis=1)
-        io.imsave(path+'/{}_predict.PNG'.format(i), concat_img)
-        #io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
-        #io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)
-        i += 1
+        i = 0
+        for slice_ori, slice_inf, slice_label in zip(vol,vol_inf,vol_label):
+            concat_img = np.concatenate((slice_ori,slice_inf,slice_label), axis=1)
+            if np.max(concat_img) == 0:
+                continue
+            io.imsave(path+'/{}_predict.PNG'.format(i), concat_img)
+            #io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
+            #io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)
+            i += 1
+
+    else:
+        i = 0
+        for slice_ori, slice_inf in zip(vol,vol_inf):
+            concat_img = np.concatenate((slice_ori,slice_inf), axis=1)
+            if np.max(concat_img) == 0:
+                continue
+            io.imsave(path+'/{}_predict.PNG'.format(i), concat_img)
+            #io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
+            #io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)
+            i += 1
+
     print('Volume saved.')
