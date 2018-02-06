@@ -186,14 +186,16 @@ class Preprocessing(object):
         add_str = ''
         if self.n4bias:
             add_str = '_n4'
-
-        p_path = self.root_path+'/patch/patch_{}'.format(self.args.patch_size)+add_str
+        
+        p_path = self.root_path+'/patch/mode_{}/patch_{}'.format(self.args.n_mode, self.args.patch_size)+add_str
         val_str = ''
 
+        if not os.path.exists(self.root_path+'/patch/mode_{}'.format(self.args.n_mode)):
+            os.makedirs(self.root_path+'/patch/mode_{}'.format(self.args.n_mode))
         if not os.path.exists(p_path):
             os.makedirs(p_path)
 
-        if len(glob(p_path+'/**')) > 1:
+        if len(glob(p_path+'/**')) > 0:
             print('Done.\n')
             return p_path, 0
         

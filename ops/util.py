@@ -28,11 +28,11 @@ def init_model(args):
 
     model_idx = 1
     for m in range(len(models)):
-        models_path = glob(path+'/miccai_{}.pkl'.format(m))
+        models_path = glob(path+'/mode_{}/miccai_{}.pkl'.format(args.n_mode,m))
 
         # exist models
         if models_path:
-            model_path = path+'/miccai_{}.pkl'.format(m)
+            model_path = path+'/mode_{}/miccai_{}.pkl'.format(args.n_mode,m)
             print('pretrained s model loading: '+model_path)
             models[m].load_state_dict(torch.load(model_path))
 
