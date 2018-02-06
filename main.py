@@ -51,14 +51,14 @@ n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image:
 print('----------------------------------------------')
 print(args)
 print('----------------------------------------------')
-'''
+
 # Init models
 models, model_path = init_model(args)
 
 # Init optimizer, loss function
 optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
 loss_func = nn.BCEWithLogitsLoss()
-'''
+
 # Preprocessing
 pp = Preprocessing(args, n4b, n4b_apply)
 p_path, all_len = pp.preprocess()
@@ -74,7 +74,7 @@ for path in val_path:
     val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
     val_batch.append(val_bc.db_load())
 
-'''
+
 # Training & Validation
 cnt = 1
 thsd = 0.0
@@ -106,4 +106,3 @@ if args.data_name == 'YS':
     test_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/test_ys')
     test_batch = test_bc.db_load()
     testing(args, test_batch, models, 0, thsd)
-'''
