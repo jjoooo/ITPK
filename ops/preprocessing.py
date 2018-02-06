@@ -18,7 +18,6 @@ class Preprocessing(object):
 
     def __init__(self, args, n4, n4_apply):
         self.args = args
-        print(self.args)
         self.n4bias = n4
         self.n4bias_apply = n4_apply
         self.train_bool = True # Default training
@@ -75,13 +74,17 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
             else:
                 for mode_ix in range(self.args.n_mode-1):
-                    normed_slices.append(self._normalize(self.slices_by_mode[slice_ix]))
+                    normed_slices.append(self._normalize(self.slices_by_mode[slice_ix])[0])
                     if np.max(normed_slices[-1]) != 0: # set values < 1
                         normed_slices[-1] /= np.max(normed_slices[-1])
                     if np.min(normed_slices[-1]) <= -1: # set values > -1
                         normed_slices[-1] /= abs(np.min(normed_slices[-1]))
+                    o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
+                    if not os.path.exists(o_path):
+                        os.makedirs(o_path)
+                    io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[slice_ix])
 
-            if False:
+            if False: # if need to save 'label, origin img'
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
                 if not os.path.exists(l_path):
@@ -149,13 +152,12 @@ class Preprocessing(object):
                     mode = [flair[0], t1_n4[0], t1_n4[1], t2[0], gt[0]]
                 else:
                     mode = [flair[0], t1_n4[0], t2[0], gt[0]]
-            
-            if self.args.n_mode < 3:
-                mode = [t1[0], gt[0]]
 
-            for scan_idx in range(len(mode)):
-                self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
+                if self.args.n_mode < 3:
+                    mode = [t1[0], gt[0]]
 
+                for scan_idx in range(len(mode)):
+                    self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
         
         print('         -> Done.')
 
@@ -186,7 +188,8 @@ class Preprocessing(object):
             add_str = '_n4'
 
         p_path = self.root_path+'/patch/patch_{}'.format(self.args.patch_size)+add_str
-        
+        val_str = ''
+
         if not os.path.exists(p_path):
             os.makedirs(p_path)
 
@@ -194,8 +197,13 @@ class Preprocessing(object):
             print('Done.\n')
             return p_path, 0
         
+        if self.data_name == 'YS':
+            if len(glob(p_path+val_str+'/**')) >= len(self.patients):
+                return p_path, 0
+
         len_patch = 0
         n_val = 1 
+
         
         for idx, patient in enumerate(self.patients):
 
@@ -204,7 +212,7 @@ class Preprocessing(object):
          
             if self.data_name == 'YS':
                 self.train_bool = False
-                val_str = '/test_ys/0'
+                val_str = '/test_ys/{}'.format(idx)
                 if not os.path.exists(p_path+val_str):
                     os.makedirs(p_path+val_str)
                 if not os.path.exists(p_path+val_str+'/0'):
@@ -212,13 +220,13 @@ class Preprocessing(object):
                 
             else:
                 if idx > n_val and idx < n_val+3:
-                    val_str = '/validation/{}'.format(idx)
                     self.train_bool = False
+                    val_str = '/validation/{}'.format(idx)
                     print(' --> test patch : '+ patient)
                 else:
-                    val_str = '/train'
                     self.train_bool = True
-
+                    val_str = '/train'
+                    
                 for i in range(self.args.n_class):
                     if not os.path.exists(p_path+val_str):
                         os.makedirs(p_path+val_str)
@@ -239,6 +247,7 @@ class Preprocessing(object):
                 len_patch += l_p
             
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
+            
         print('\n\nnum of all patch = {}'.format(len_patch))
 
         print('Done.\n')

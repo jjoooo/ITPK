@@ -160,12 +160,10 @@ class MakePatches(object):
 
         # random patch each class
         depth = len(volume)
-        
-       
         n_patch = 0
         strd = 4
         for d in range(depth):
-            _,height,width = volume[d].shape
+            height,width = volume[d].shape
 
             for y in range(strd,height-strd,strd):
                 for x in range(strd,width-strd,strd):
@@ -179,7 +177,10 @@ class MakePatches(object):
                         continue
                     
                     slice = volume[d]
-                    patches = slice[0, h1:h2, w1:w2]
+                    patches = slice[h1:h2, w1:w2]
+
+                    if not self._patch_filtering(patches,0):
+                        continue
 
                     temp = p_path+'/0/{}_{}_{}_{}.PNG'.format(d,y,x,idx)
                     io.imsave(temp, patches)
