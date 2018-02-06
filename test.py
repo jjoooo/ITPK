@@ -101,30 +101,29 @@ def save_result(args, output_prob, idx, thsd):
 
     vol = img_as_float(origin_volume)
     vol = (vol-np.min(vol))/(np.max(vol)-np.min(vol))
-    vol = adjust_gamma(color.gray2rgb(vol), 0.5)
+    vol = adjust_gamma(color.gray2rgb(vol), 0.4)
 
     label_rgb = img_as_float(label_volume)
     label_rgb = color.gray2rgb(label_rgb)
 
-    rgb_class = img_as_float(output_prob)
-    rgb_class = color.gray2rgb(rgb_class)
+    infer_rgb = img_as_float(output_prob)
+    infer_rgb = color.gray2rgb(infer_rgb)
 
     red_mul = [1,0,0]
     
-    rgb_class = red_mul * rgb_class
+    infer_rgb = red_mul * infer_rgb
     label_rgb = red_mul * label_rgb
 
-    rgb_class = adjust_gamma(rgb_class, 0.5)
-    label_rgb = adjust_gamma(label_rgb, 0.5)
+    infer_rgb = adjust_gamma(infer_rgb, 0.6)
+    label_rgb = adjust_gamma(label_rgb, 0.6)
 
-    vol_inf = vol+rgb_class
+    vol_inf = vol+infer_rgb
 
     vol_inf = (vol_inf - np.mean(vol_inf)) / np.std(vol_inf)
     if np.max(vol_inf) != 0: # set values < 1
         vol_inf /= np.max(vol_inf)
     if np.min(vol_inf) <= -1: # set values > -1
         vol_inf /= abs(np.min(vol_inf))
-    print('vol : min={},max={}'.format(np.min(vol_inf),np.max(vol_inf)))
 
     vol_label = vol+label_rgb
 
@@ -133,7 +132,6 @@ def save_result(args, output_prob, idx, thsd):
         vol_label /= np.max(vol_label)
     if np.min(vol_label) <= -1: # set values > -1
         vol_label /= abs(np.min(vol_label))
-    print('vol : min={},max={}'.format(np.min(vol_label),np.max(vol_label)))
 
     
     i = 0
