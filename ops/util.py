@@ -4,7 +4,11 @@ from glob import glob
 
 import torch
 import torch.nn as nn
+from skimage import io
+
 from resnet2d import Resnet, Classifier
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def init_model(args):
@@ -33,3 +37,29 @@ def init_model(args):
             models[m].load_state_dict(torch.load(model_path))
 
     return models, path
+
+
+
+def dcm2png(path):
+    patients = glob(path + '/**')
+    
+    for patient in patients:
+
+        im_path = glob(patient + '/**/*.dcm')
+        for p in im_path:
+            fn = p[:-3]+'PNG'
+            img = io.imread(p, plugin='simpleitk').astype(float)
+            t = np.percentile(img, 99)
+            img = np.clip(img, 0, t)
+            img = (img - np.mean(img)) / np.std(img)
+            if np.max(img) != 0: # set values < 1
+                img /= np.max(img)
+            if np.min(img) <= -1: # set values > -1
+                img /= abs(np.min(img))
+
+            io.imsave(fn, img[0])
+
+if __name__ == "__main__":
+    dcm2png('/Users/jui/Downloads/Data/YS/MS')
+
+    

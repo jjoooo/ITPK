@@ -114,7 +114,7 @@ class Preprocessing(object):
 
         else:
             flair=[]; t1_n4=[]; t2=[]; gt=[];
-            t1 = glob(path + '/**/*' + self.ext)
+            t1 = glob(path + '/*' + self.ext)
 
         return flair, t1, t1_n4, t2, gt
 
@@ -126,7 +126,7 @@ class Preprocessing(object):
         flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
         
         if self.args.data_name == 'YS':
-            
+            self.slices_by_mode = []
             for scan in t1s:
                 self.slices_by_mode.append(io.imread(scan, plugin='simpleitk').astype(float))
 
@@ -247,7 +247,7 @@ class Preprocessing(object):
                 len_patch += l_p
             
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
-            
+          
         print('\n\nnum of all patch = {}'.format(len_patch))
 
         print('Done.\n')

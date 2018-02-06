@@ -186,7 +186,8 @@ class MakePatches(object):
                     io.imsave(temp, patches)
 
                     n_patch += 1
-
+           
+    
         return n_patch
 
 
