@@ -74,18 +74,21 @@ for path in val_path:
     val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
     val_batch.append(val_bc.db_load())
 
+
 # Training & Validation
 cnt = 1
+thsd = 0.0
 
-for ep in range(args.n_epoch):
-    
-    # Training
-    models, cnt, thsd = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
-    
-    # Validation
-    for b in val_batch:
-        validation(args, b, models, ep, thsd)
-    pass
+if args.data_name != 'YS':
+    for ep in range(args.n_epoch):
+        
+        # Training
+        models, cnt, thsd = training(args, tr_batch, models, loss_func, optimizer, cnt, model_path)
+        
+        # Validation
+        for b in val_batch:
+            validation(args, b, models, ep, thsd)
+        
 
 # Test (Segmentation)
 idx = 2
