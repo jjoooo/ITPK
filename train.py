@@ -25,8 +25,6 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
     resnet_b = models[1]
     classifier = models[2]
 
-    thsd = 0.0
-    thsd_cnt = 0
     for img,_,p in tr_batch:
 
         optimizer.zero_grad()
@@ -62,16 +60,12 @@ def training(args, tr_batch, models, loss_fn, optimizer, cnt, model_path):
 
         out_arr = out.data.cpu().numpy()  
         tar_arr = _.numpy()
-        thsd += roc_auc_score(tar_arr, out_arr)
-        thsd_cnt += 1
-        
 
     models = [resnet_s, resnet_b, classifier]
-
-    print('\nthreshold = {}\n'.format(thsd/thsd_cnt)) 
+ 
     print('Train done.')
     
-    return models, cnt, thsd/thsd_cnt
+    return models, cnt
 
 def training_cpu(self, cnt, model_path):
     pass

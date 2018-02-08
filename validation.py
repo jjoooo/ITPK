@@ -6,7 +6,7 @@ from torch.autograd import Variable
 
 
 # GPU validation
-def validation(args, val_batch, models, ep, thsd):
+def validation(args, val_batch, models, ep):
 
     # Writing accuracy
     if not os.path.exists('./acc'):
@@ -24,7 +24,7 @@ def validation(args, val_batch, models, ep, thsd):
     dsc_total = 0
     sum_out = 0
     ac_zero = 0.0
-
+    thsd = 0.5
     print('\nValidation start...')
     resnet_s = models[0]
     resnet_b = models[1]
