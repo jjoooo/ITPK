@@ -11,7 +11,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def init_model(args):
+def init_model(args, n4b):
+
     # Model init
     resnet_s = nn.DataParallel(Resnet(args.n_mode-1)).cuda() # center patch model
     resnet_b = nn.DataParallel(Resnet(args.n_mode-1)).cuda() # downsampling patch model
@@ -21,8 +22,9 @@ def init_model(args):
     # If is_exists Pretrained model: loading
     if not os.path.exists('./trained_model'):
         os.makedirs('./trained_model')
-
-    path = './trained_model/model_lr{}_ps{}'.format(args.learning_rate, args.patch_size)
+    add_str = ''
+    if n4b: add_str = '_n4'
+    path = './trained_model/model_lr{}_ps{}'.format(args.learning_rate, args.patch_size) + add_str
     if not os.path.exists(path):
         os.makedirs(path)
 

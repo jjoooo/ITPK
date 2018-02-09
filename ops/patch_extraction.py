@@ -161,10 +161,10 @@ class MakePatches(object):
         # random patch each class
         depth = len(volume)
         n_patch = 0
-        strd = 4
+        strd = 2
         for d in range(depth):
+            print('depth : {}'.format(d))
             height,width = volume[d].shape
-
             for y in range(strd,height-strd,strd):
                 for x in range(strd,width-strd,strd):
                         
@@ -186,8 +186,7 @@ class MakePatches(object):
                     io.imsave(temp, patches)
 
                     n_patch += 1
-           
-    
+
         return n_patch
 
 

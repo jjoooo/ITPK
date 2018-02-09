@@ -37,15 +37,15 @@ class Preprocessing(object):
             self.slices_by_mode = np.zeros((args.n_mode, args.volume_size, args.volume_size, args.volume_size))
          
         self.patients = glob(self.path + '/**')
-        
         self.center_labels = []
 
         
 
     def _normalize(self, slice):
         # remove outlier
-        b, t = np.percentile(slice, (1,99))
-        slice = np.clip(slice, 0, t)
+        if self.data_name != 'YS':
+            b, t = np.percentile(slice, (1,99))
+            slice = np.clip(slice, 0, t)
         slice[slice<0] = 0
         if np.std(slice) == 0: 
             return slice
@@ -74,7 +74,7 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
             else:
                 for mode_ix in range(self.args.n_mode-1):
-                    normed_slices.append(self._normalize(self.slices_by_mode[slice_ix])[0])
+                    normed_slices.append(self._normalize(self.slices_by_mode[slice_ix]))
                     if np.max(normed_slices[-1]) != 0: # set values < 1
                         normed_slices[-1] /= np.max(normed_slices[-1])
                     if np.min(normed_slices[-1]) <= -1: # set values > -1
@@ -113,9 +113,12 @@ class Preprocessing(object):
             gt = glob(path + '/*OT*/*' + self.ext)
 
         else:
-            flair=[]; t1_n4=[]; t2=[]; gt=[];
-            t1 = glob(path + '/*' + self.ext)
-
+            flair=[]; t1=[]; t1_n4=[]; t2=[]; gt=[];
+            for i in range(11):
+                img = glob(path + '/{}.dcm'.format(i))
+                mask = glob(path + '/{}_mask.*'.format(i))
+                t1.append(img[0])
+                gt.append(mask[0])
         return flair, t1, t1_n4, t2, gt
 
     def volume2slices(self, patient):
@@ -124,12 +127,15 @@ class Preprocessing(object):
         mode = []
         # directories to each protocol (5 total)
         flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
-        
         if self.args.data_name == 'YS':
-            self.slices_by_mode = []
-            for scan in t1s:
-                self.slices_by_mode.append(io.imread(scan, plugin='simpleitk').astype(float))
-
+            self.slices_by_mode = []            
+            for scan, m in zip(t1s, gt):
+                img = io.imread(scan, plugin='simpleitk').astype(float)
+                mask = io.imread(m, plugin='simpleitk').astype(float)
+                img = img[0]
+                mask = mask[:,:,0]
+                img[mask<1] = 0
+                self.slices_by_mode.append(img)
         else:
             t1 = [scan for scan in t1s if scan not in t1_n4]
 
@@ -186,23 +192,21 @@ class Preprocessing(object):
         add_str = ''
         if self.n4bias:
             add_str = '_n4'
-        
-        p_path = self.root_path+'/patch/mode_{}/patch_{}'.format(self.args.n_mode, self.args.patch_size)+add_str
+
+        p_path = self.root_path+'/patch/patch_{}'.format(self.args.patch_size)+add_str
         val_str = ''
 
-        if not os.path.exists(self.root_path+'/patch/mode_{}'.format(self.args.n_mode)):
-            os.makedirs(self.root_path+'/patch/mode_{}'.format(self.args.n_mode))
         if not os.path.exists(p_path):
             os.makedirs(p_path)
 
-        if len(glob(p_path+'/**')) > 0:
-            print('Done.\n')
-            return p_path, 0
-        
         if self.data_name == 'YS':
-            if len(glob(p_path+val_str+'/**')) >= len(self.patients):
+            if len(glob(p_path+'/test_ys/0/0/**')) > 0:
+                print('YS Done.\n')
                 return p_path, 0
-
+        else:
+            if len(glob(p_path+'/**')) > 1:
+                print('MICCAI Done.\n')
+                return p_path, 0
         len_patch = 0
         n_val = 1 
 
@@ -237,7 +241,6 @@ class Preprocessing(object):
 
 
             normed_slices = self.norm_slices(idx, self.train_bool)
-       
             # run patch_extraction
             pl = MakePatches(self.args, self.args.n_patch/len(self.patients), self.train_bool)
 
@@ -249,7 +252,7 @@ class Preprocessing(object):
                 len_patch += l_p
             
             print('-----------------------idx = {} & num of patches = {}'.format(idx, l_p))
-          
+            
         print('\n\nnum of all patch = {}'.format(len_patch))
 
         print('Done.\n')
