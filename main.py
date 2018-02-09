@@ -45,8 +45,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]=use_gpu
 n_channel = 1
 out_dim = 2
 
-n4b = False # Whether to use or not N4 bias correction image
-n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image: do this)
+n4b = True # Whether to use or not N4 bias correction image
+n4b_apply = True # Perform N4 bias correction (if not is_exist corrected image: do this)
 
 
 print('----------------------------------------------')
@@ -54,7 +54,7 @@ print(args)
 print('----------------------------------------------')
 
 # Init models
-models, model_path = init_model(args)
+models, model_path = init_model(args, n4b)
 
 # Init optimizer, loss function
 optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
@@ -63,6 +63,7 @@ loss_func = nn.BCEWithLogitsLoss().cuda()
 # Preprocessing
 pp = Preprocessing(args, n4b, n4b_apply)
 p_path, all_len = pp.preprocess()
+
 
 
 if args.tr_bl == 1 and args.data_name != 'YS':
@@ -92,8 +93,8 @@ if args.tr_bl == 1 and args.data_name != 'YS':
             validation(args, b, models, ep)
 
 
-
 else:
+
     # Real MR data test (Segmentation)
     if args.data_name == 'YS':
         test_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, p_path+'/test_ys/0')
@@ -102,15 +103,12 @@ else:
 
     # MICCAI MR data test (Segmentation)
     else:
-        # Create data batch
         val_path = glob(p_path+'/validation/**')
         val_batch = []
         for path in val_path:
             val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
             val_batch.append(val_bc.db_load())
-        # Test
-        idx=2
+        idx = 2
         for b in val_batch:
             testing(args, b, models, idx)
             idx += 1
-
