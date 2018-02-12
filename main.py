@@ -29,7 +29,7 @@ parser.add_argument("--n_epoch",type=int,default=100)
 parser.add_argument("--patch_size",type=int,default=16)
 parser.add_argument("--n_patch",type=int,default=1000)
 parser.add_argument("--batch_size",type=int,default=1024)
-parser.add_argument("--root",type=str,default='/mnt/disk2/data/MRI_Data/')
+parser.add_argument("--root",type=str,default='/Users/jui/Downloads/Data/')
 parser.add_argument("--data_name",type=str,default='YS')
 parser.add_argument("--n_class",type=int,default=2)
 parser.add_argument("--n_mode",type=int,default=2)
@@ -39,27 +39,27 @@ parser.add_argument("--tr_dim",type=int,default=2)
 parser.add_argument("--tr_bl",type=int,default=1)
 args = parser.parse_args()
 
-use_gpu = '{},{}'.format(args.gpu_idx,args.gpu_idx+1)
-os.environ["CUDA_VISIBLE_DEVICES"]=use_gpu
+#use_gpu = '{},{}'.format(args.gpu_idx,args.gpu_idx+1)
+#os.environ["CUDA_VISIBLE_DEVICES"]=use_gpu
 
 n_channel = 1
 out_dim = 2
 
-n4b = True # Whether to use or not N4 bias correction image
-n4b_apply = True # Perform N4 bias correction (if not is_exist corrected image: do this)
+n4b = False # Whether to use or not N4 bias correction image
+n4b_apply = False # Perform N4 bias correction (if not is_exist corrected image: do this)
 
 
 print('----------------------------------------------')
 print(args)
 print('----------------------------------------------')
-
+'''
 # Init models
 models, model_path = init_model(args, n4b)
 
 # Init optimizer, loss function
 optimizer = torch.optim.Adam(models[2].parameters(), lr=args.learning_rate) # classifier optimizer
 loss_func = nn.BCEWithLogitsLoss().cuda()
-
+'''
 # Preprocessing
 pp = Preprocessing(args, n4b, n4b_apply)
 p_path, all_len = pp.preprocess()
@@ -77,7 +77,7 @@ if args.tr_bl == 1 and args.data_name != 'YS':
     for path in val_path:
         val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
         val_batch.append(val_bc.db_load())
-
+'''
     # Training & Validation
     cnt = 1
     for ep in range(args.n_epoch):
@@ -112,3 +112,4 @@ else:
         for b in val_batch:
             testing(args, b, models, idx)
             idx += 1
+'''
