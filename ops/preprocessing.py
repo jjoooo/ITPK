@@ -30,16 +30,18 @@ class Preprocessing(object):
         if self.data_name == 'YS':
             self.path = self.root_path + '/MS'
             self.ext = '.dcm'
-            self.slices_by_mode = []
+            self.patients = glob(self.path + '/**')
+            self.volume_depth = len(glob(self.patients[0]+'/*.dcm'))
+            if self.args.n_mode==2 and self.n4bias: self.args.n_mode = 3
+            
         else:
             self.path = self.root_path + '/training'
             self.ext = '.nhdr'
-            self.slices_by_mode = np.zeros((args.n_mode, args.volume_size, args.volume_size, args.volume_size))
-         
-        self.patients = glob(self.path + '/**')
-        self.center_labels = []
-
-        
+            self.patients = glob(self.path + '/**')
+            if self.args.n_mode==2 and self.n4bias: self.args.n_mode = 3
+            self.volume_depth =  args.volume_size
+        self.slices_by_mode = np.zeros((self.args.n_mode, self.volume_depth, args.volume_size, args.volume_size))
+ 
 
     def _normalize(self, slice):
         # remove outlier
@@ -55,14 +57,10 @@ class Preprocessing(object):
 
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
-        if self.args.data_name == 'YS':
-            normed_slices = []
-            slice_len = len(self.slices_by_mode)
-        else:
-            normed_slices = np.zeros((self.args.n_mode, self.args.volume_size, self.args.volume_size, self.args.volume_size))
-            slice_len = len(self.slices_by_mode[0])
         
-        for slice_ix in range(slice_len):
+        normed_slices = np.zeros((self.args.n_mode, self.volume_depth, self.args.volume_size, self.args.volume_size))
+
+        for slice_ix in range(self.volume_depth):
             if self.data_name != 'YS':
                 normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
 
@@ -72,19 +70,28 @@ class Preprocessing(object):
                         normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
                     if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
                         normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+                        
             else:
+                mask = self.slices_by_mode[-1][slice_ix]
+
                 for mode_ix in range(self.args.n_mode-1):
-                    normed_slices.append(self._normalize(self.slices_by_mode[slice_ix]))
-                    if np.max(normed_slices[-1]) != 0: # set values < 1
-                        normed_slices[-1] /= np.max(normed_slices[-1])
-                    if np.min(normed_slices[-1]) <= -1: # set values > -1
-                        normed_slices[-1] /= abs(np.min(normed_slices[-1]))
+                    normed_slices[mode_ix][slice_ix] =  self._normalize(self.slices_by_mode[mode_ix][slice_ix])
+                    if np.max(normed_slices[mode_ix][slice_ix]) != 0: # set values < 1
+                        normed_slices[mode_ix][slice_ix] /= np.max(normed_slices[mode_ix][slice_ix])
+                    if np.min(normed_slices[mode_ix][slice_ix]) <= -1: # set values > -1
+                        normed_slices[mode_ix][slice_ix] /= abs(np.min(normed_slices[mode_ix][slice_ix]))
+                    
+                    # Skull stripping
+                    normed_slices[mode_ix][slice_ix][mask<1] = 0
+
                     o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
                     if not os.path.exists(o_path):
                         os.makedirs(o_path)
                     io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[slice_ix])
+                    if mode_ix == 1:
+                        io.imsave(o_path+'/{}_origin_N4.PNG'.format(slice_ix), normed_slices[slice_ix])
 
-            if False: # if need to save 'label, origin img'
+            if True: # if need to save 'label, origin img'
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
                 if not os.path.exists(l_path):
@@ -93,6 +100,7 @@ class Preprocessing(object):
                     os.makedirs(o_path)
                 io.imsave(l_path+'/{}_label.PNG'.format(slice_ix), normed_slices[-1][slice_ix])
                 io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[0][slice_ix])
+                io.imsave(o_path+'/{}_origin_N4.PNG'.format(slice_ix), normed_slices[1][slice_ix])
 
         print('         -> Done.')
         return normed_slices
@@ -118,7 +126,12 @@ class Preprocessing(object):
                 img = glob(path + '/{}.dcm'.format(i))
                 mask = glob(path + '/{}_mask.*'.format(i))
                 t1.append(img[0])
-                gt.append(mask[0])
+                gt.append(mask[0][:,:,0])
+                
+            if glob(path + '/0__n.mha'):
+                img_n = glob(path + '/0__n.mha')
+                t1_n4.append(img_n[0])
+
         return flair, t1, t1_n4, t2, gt
 
     def volume2slices(self, patient):
@@ -127,17 +140,30 @@ class Preprocessing(object):
         mode = []
         # directories to each protocol (5 total)
         flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
+        t1 = [scan for scan in t1s if scan not in t1_n4]
+        
         if self.args.data_name == 'YS':
-            self.slices_by_mode = []            
-            for scan, m in zip(t1s, gt):
-                img = io.imread(scan, plugin='simpleitk').astype(float)
-                mask = io.imread(m, plugin='simpleitk').astype(float)
-                img = img[0]
-                mask = mask[:,:,0]
-                img[mask<1] = 0
-                self.slices_by_mode.append(img)
+        
+            if self.n4bias:
+                if self.n4bias_apply:
+                    vol = np.zeros([len(t1), self.args.volume_size, self.args.volume_size])
+                    for idx, im_path in enumerate(t1):
+                        im = io.imread(im_path,plugin='simpleitk').astype(float)
+                        vol[idx] = im
+                    
+                    vol = sitk.GetImageFromArray(vol)
+                    sitk.WriteImage(vol, patient+'/0.mha')
+                    self.n4itk_norm(patient+'/0.mha') # n4 normalize
+                flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
+                mode = [t1[0], t1_n4[0], gt[0]]
+            else:
+                mode = [t1[0], gt[0]]
+
+                for mode_idx in range(len(mode)):
+                    for slx in range(self.volume_depth):
+                        self.slices_by_mode[mode_idx][slx] = io.imread(mode[mode_idx], plugin='simpleitk').astype(float)
+            
         else:
-            t1 = [scan for scan in t1s if scan not in t1_n4]
 
             if not self.n4bias:
                 if len(t1) > 1:
@@ -159,11 +185,15 @@ class Preprocessing(object):
                 else:
                     mode = [flair[0], t1_n4[0], t2[0], gt[0]]
 
-            if self.args.n_mode < 3:
-                mode = [t1[0], gt[0]]
-
-            for scan_idx in range(len(mode)):
-                self.slices_by_mode[scan_idx] = io.imread(mode[scan_idx], plugin='simpleitk').astype(float)
+            if self.args.n_mode < 4:
+                if self.n4bias:
+                    
+                    mode = [t1[0], t1_n4[0], gt[0]]
+                else:
+                    mode = [t1[0], gt[0]]
+                
+            for mode_idx in range(len(mode)):
+                self.slices_by_mode[mode_idx] = io.imread(mode[mode_idx], plugin='simpleitk').astype(float)
     
         print('         -> Done.')
 
