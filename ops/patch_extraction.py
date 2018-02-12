@@ -159,33 +159,36 @@ class MakePatches(object):
     def create_2Dpatches_YS(self, volume, p_path, idx):
 
         # random patch each class
-        depth = len(volume)
+        n_mode = len(volume)
+        depth = len(volume[0])
         n_patch = 0
         strd = 2
-        for d in range(depth):
-            print('depth : {}'.format(d))
-            height,width = volume[d].shape
-            for y in range(strd,height-strd,strd):
-                for x in range(strd,width-strd,strd):
+        for m in range(n_mode):
+            print('mode : {}'.format(m))
+            for d in range(depth):
+                print('depth : {}'.format(d))
+                height,width = volume[m,d].shape
+                for y in range(strd,height-strd,strd):
+                    for x in range(strd,width-strd,strd):
+                            
+                        h1 = y-int(self.h/2)
+                        h2 = y+int(self.h/2)
+                        w1 = x-int(self.w/2)
+                        w2 = x+int(self.w/2)
+
+                        if h1 < 0 or h2 > height or w1 < 0 or w2 > width:
+                            continue
                         
-                    h1 = y-int(self.h/2)
-                    h2 = y+int(self.h/2)
-                    w1 = x-int(self.w/2)
-                    w2 = x+int(self.w/2)
+                        sl = volume[m,d]
+                        patches = sl[h1:h2, w1:w2]
 
-                    if h1 < 0 or h2 > height or w1 < 0 or w2 > width:
-                        continue
-                    
-                    slice = volume[d]
-                    patches = slice[h1:h2, w1:w2]
+                        if not self._patch_filtering(patches,0):
+                            continue
 
-                    if not self._patch_filtering(patches,0):
-                        continue
+                        temp = p_path+'/0/{}_{}_{}_{}.PNG'.format(d,y,x,idx)
+                        io.imsave(temp, patches)
 
-                    temp = p_path+'/0/{}_{}_{}_{}.PNG'.format(d,y,x,idx)
-                    io.imsave(temp, patches)
-
-                    n_patch += 1
+                        n_patch += 1
 
         return n_patch
 

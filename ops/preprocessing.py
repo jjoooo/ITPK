@@ -57,9 +57,11 @@ class Preprocessing(object):
 
     def norm_slices(self, idx, train_bl):
         print('         -> Normalizing slices...')
-        
-        normed_slices = np.zeros((self.args.n_mode, self.volume_depth, self.args.volume_size, self.args.volume_size))
-
+        if self.data_name != 'YS':
+            normed_slices = np.zeros((self.args.n_mode, self.volume_depth, self.args.volume_size, self.args.volume_size))
+        else:
+            normed_slices = np.zeros((self.args.n_mode-1, self.volume_depth, self.args.volume_size, self.args.volume_size))
+            
         for slice_ix in range(self.volume_depth):
             if self.data_name != 'YS':
                 normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
@@ -87,11 +89,11 @@ class Preprocessing(object):
                     o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
                     if not os.path.exists(o_path):
                         os.makedirs(o_path)
-                    io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[slice_ix])
+                    io.imsave(o_path+'/{}_origin.PNG'.format(slice_ix), normed_slices[mode_ix][slice_ix])
                     if mode_ix == 1:
-                        io.imsave(o_path+'/{}_origin_N4.PNG'.format(slice_ix), normed_slices[slice_ix])
+                        io.imsave(o_path+'/{}_origin_N4.PNG'.format(slice_ix), normed_slices[mode_ix][slice_ix])
 
-            if True: # if need to save 'label, origin img'
+            if False: # if need to save 'label, origin img'
                 l_path = self.root_path+'/test_label_PNG/{}'.format(idx)
                 o_path = self.root_path+'/test_origin_PNG/{}'.format(idx)
                 if not os.path.exists(l_path):
@@ -126,7 +128,7 @@ class Preprocessing(object):
                 img = glob(path + '/{}.dcm'.format(i))
                 mask = glob(path + '/{}_mask.*'.format(i))
                 t1.append(img[0])
-                gt.append(mask[0][:,:,0])
+                gt.append(mask[0])
                 
             if glob(path + '/0__n.mha'):
                 img_n = glob(path + '/0__n.mha')
@@ -161,7 +163,9 @@ class Preprocessing(object):
 
                 for mode_idx in range(len(mode)):
                     for slx in range(self.volume_depth):
-                        self.slices_by_mode[mode_idx][slx] = io.imread(mode[mode_idx], plugin='simpleitk').astype(float)
+                        img = io.imread(mode[mode_idx], plugin='simpleitk').astype(float)
+                        if len(img.shape) >2: img = img[:,:,0]
+                        self.slices_by_mode[mode_idx][slx] = img
             
         else:
 
