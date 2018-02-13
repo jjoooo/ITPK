@@ -61,7 +61,7 @@ class Preprocessing(object):
             normed_slices = np.zeros((self.args.n_mode, self.volume_depth, self.args.volume_size, self.args.volume_size))
         else:
             normed_slices = np.zeros((self.args.n_mode-1, self.volume_depth, self.args.volume_size, self.args.volume_size))
-            
+
         for slice_ix in range(self.volume_depth):
             if self.data_name != 'YS':
                 normed_slices[-1][slice_ix] = self.slices_by_mode[-1][slice_ix]
@@ -159,12 +159,13 @@ class Preprocessing(object):
                 flair, t1s, t1_n4, t2, gt = self.path_glob(self.data_name, patient)
                 mode = [t1[0], t1_n4[0], gt[0]]
             else:
-                mode = [t1[0], gt[0]]
+                mode = [t1, gt]
 
                 for mode_idx in range(len(mode)):
                     for slx in range(self.volume_depth):
-                        img = io.imread(mode[mode_idx], plugin='simpleitk').astype(float)
-                        if len(img.shape) >2: img = img[:,:,0]
+                        img = io.imread(mode[mode_idx][slx], plugin='simpleitk').astype(float)
+                        if mode_idx==0: img = img[0]
+                        else: img = img[:,:,0]
                         self.slices_by_mode[mode_idx][slx] = img
             
         else:
