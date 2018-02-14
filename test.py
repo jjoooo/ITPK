@@ -79,12 +79,9 @@ def save_result(args, output_prob, idx):
     if not os.path.exists(path):
         os.makedirs(path)
 
-    # min-max scale
-
     thsd = 0.2
     output_prob[output_prob<thsd] = 0 
-    b, t = np.percentile(output_prob, (1,99))
-    slice = np.clip(output_prob, 0, t)
+
     output_prob = (output_prob-np.min(output_prob))/(np.max(output_prob)-np.min(output_prob))
     print('after minmax \noutput_prob : min={}, max={}\n'.format(np.min(output_prob),np.max(output_prob)))
     print('output_prob : mean = {}'.format(np.mean(output_prob)))
@@ -95,10 +92,11 @@ def save_result(args, output_prob, idx):
 
     if args.data_name != 'YS':
         label_path = glob(args.root+args.data_name+'/test_label_PNG/{}/**'.format(idx))
-        label_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
-        for ix in range(args.volume_size):
-            origin_volume[ix] = io.imread(args.root+args.data_name+'/test_origin_PNG/{}/{}_origin.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
-            label_volume[ix] = io.imread(args.root+args.data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
+        if label_path: 
+            label_volume = np.zeros([args.volume_size, args.volume_size, args.volume_size])
+            for ix in range(args.volume_size):
+                origin_volume[ix] = io.imread(args.root+args.data_name+'/test_origin_PNG/{}/{}_origin.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
+                label_volume[ix] = io.imread(args.root+args.data_name+'/test_label_PNG/{}/{}_label.PNG'.format(idx,ix), plugin='simpleitk').astype(float)
     
     else:
         for ix in range(len(origin_path)):
@@ -157,8 +155,8 @@ def save_result(args, output_prob, idx):
         i = 0
         for slice_ori, slice_inf in zip(vol,vol_inf):
             concat_img = np.concatenate((slice_ori,slice_inf), axis=1)
-            if np.max(concat_img) == 0:
-                continue
+            if i> len(origin_path)-1:
+                break
             io.imsave(path+'/{}_predict.PNG'.format(i), concat_img)
             #io.imsave(path+'/{}_predict_inf.PNG'.format(i), slice_inf)
             #io.imsave(path+'/{}_predict_rgb_class.PNG'.format(i), slice_label)

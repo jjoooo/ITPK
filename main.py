@@ -65,7 +65,7 @@ pp = Preprocessing(args, n4b, n4b_apply)
 p_path, all_len = pp.preprocess()
 
 
-
+'''
 if args.tr_bl == 1 and args.data_name != 'YS':
 
     # Create data batch
@@ -77,7 +77,7 @@ if args.tr_bl == 1 and args.data_name != 'YS':
     for path in val_path:
         val_bc = Create_Batch(args.batch_size, int(args.patch_size/2), args.n_mode-1, path)
         val_batch.append(val_bc.db_load())
-'''
+
     # Training & Validation
     cnt = 1
     for ep in range(args.n_epoch):
