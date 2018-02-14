@@ -56,8 +56,11 @@ class MakePatches(object):
             print('percentile 90 == -1')
             return False
         
+        if np.sum(patch)==0 and np.max(patch)==0:
+            return False
+
         # 80th entropy percentile
-        if c==0:
+        if c==0 and self.args.data_name!='YS':
             m_ent = 0
             ent = np.zeros([self.h,self.w])
             if self.args.tr_dim==3:
@@ -160,15 +163,19 @@ class MakePatches(object):
 
         # random patch each class
         n_mode = len(volume)
+        print('volume mean = {}, max = {}'.format(np.mean(volume), np.max(volume)))
         depth = len(volume[0])
         n_patch = 0
         strd = 2
         for m in range(n_mode):
-            print('mode : {}'.format(m))
+            
             for d in range(depth):
-                print('depth : {}'.format(d))
-                height,width = volume[m,d].shape
+                sl = volume[m,d]
+                print('slice {} = {}'.format(d, np.mean(sl)))
+                height,width = sl.shape
+                
                 for y in range(strd,height-strd,strd):
+                    print('slice {} : y {} mean = {}, max = {}'.format(d, y, np.mean(sl[y]), np.max(sl[y])))
                     for x in range(strd,width-strd,strd):
                             
                         h1 = y-int(self.h/2)
@@ -179,7 +186,6 @@ class MakePatches(object):
                         if h1 < 0 or h2 > height or w1 < 0 or w2 > width:
                             continue
                         
-                        sl = volume[m,d]
                         patches = sl[h1:h2, w1:w2]
 
                         if not self._patch_filtering(patches,0):
